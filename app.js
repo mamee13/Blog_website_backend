@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const authRoutes = require('./Routes/authRoutes');
 const postRoutes = require('./Routes/postRoutes');
+const errorController = require('./Controllers/errorController');
 
 // Load environment variables
 dotenv.config({ path: './Config.env' });
@@ -14,6 +15,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json()); // Parse JSON bodies
+app.use('/images', express.static('public/images'));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
@@ -29,10 +31,7 @@ app.get('/', (req, res) => {
   res.send('Blog API is running!');
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
-});
+// Add this after all your routes
+app.use(errorController);
 
 module.exports = app; // Export the app for use in server.js
