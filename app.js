@@ -4,7 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const authRoutes = require('./Routes/authRoutes');
 const postRoutes = require('./Routes/postRoutes');
-const errorController = require('./Controllers/errorController');
+const errorController = require('./Controllers/errorcontroller');
 
 // Load environment variables
 dotenv.config({ path: './Config.env' });

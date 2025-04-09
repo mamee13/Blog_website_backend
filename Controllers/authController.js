@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const catchAsync = require('../Utils/catchAsync');
 const AppError = require('../Utils/AppError');
+const { sendVerificationEmail } = require('../Utils/email');
 
 const signToken = id => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -11,7 +12,7 @@ const signToken = id => {
 };
 
 exports.signup = catchAsync(async (req, res, next) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, passwordConfirm } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -19,27 +20,57 @@ exports.signup = catchAsync(async (req, res, next) => {
         return next(new AppError('Email already in use', 400));
     }
 
+    // Generate verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
     // Create new user
     const hashedPassword = await bcrypt.hash(password, 12);
     const newUser = await User.create({
         username,
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        passwordConfirm,
+        verificationCode,
+        verificationCodeExpires,
+        isVerified: false
     });
 
-    // Generate token
-    const token = signToken(newUser._id);
+    // Send verification email
+    await sendVerificationEmail(email, verificationCode);
 
     res.status(201).json({
         status: 'success',
-        token,
-        data: {
-            user: {
-                id: newUser._id,
-                username: newUser.username,
-                email: newUser.email
-            }
-        }
+        message: 'Verification code sent to your email'
+    });
+});
+
+exports.verifyEmail = catchAsync(async (req, res, next) => {
+    const { email, verificationCode } = req.body;
+
+    const user = await User.findOne({
+        email,
+        verificationCode,
+        verificationCodeExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return next(new AppError('Invalid or expired verification code', 400));
+    }
+
+    // Update user
+    user.isVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+    await user.save();
+
+    // Generate token
+    const token = signToken(user._id);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Email verified successfully',
+        token
     });
 });
 
@@ -55,6 +86,11 @@ exports.login = catchAsync(async (req, res, next) => {
     const user = await User.findOne({ email }).select('+password');
     if (!user || !(await bcrypt.compare(password, user.password))) {
         return next(new AppError('Incorrect email or password', 401));
+    }
+
+    // Check if user is verified
+    if (!user.isVerified) {
+        return next(new AppError('Please verify your email first', 401));
     }
 
     // Generate token

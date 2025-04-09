@@ -28,7 +28,13 @@ const userSchema = new mongoose.Schema({
     },
     passwordConfirm: {
         type: String,
-    }
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationCode: String,
+    verificationCodeExpires: Date,
 });
 
 // Remove passwordConfirm field before saving
