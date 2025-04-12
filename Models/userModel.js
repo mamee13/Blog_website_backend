@@ -35,6 +35,16 @@ const userSchema = new mongoose.Schema({
     },
     verificationCode: String,
     verificationCodeExpires: Date,
+    bookmarks: [{
+        post: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'post'  // Changed from 'Post' to 'post' to match your model name
+        },
+        addedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }]
 });
 
 // Remove passwordConfirm field before saving

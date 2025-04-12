@@ -136,3 +136,83 @@ exports.createComment = catchAsync(async (req, res, next) => {
 
 // Remove this as it seems to be misplaced Express route handler
 // It should be in the routes file instead
+
+// Toggle like/dislike on a post
+exports.toggleLike = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.postId);
+        if (!post) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Post not found'
+            });
+        }
+
+        // Check if user has already liked/disliked
+        const existingLike = post.likes.find(
+            like => like.user.toString() === req.user._id.toString()
+        );
+
+        if (existingLike) {
+            // If same type, remove the like/dislike
+            if (existingLike.type === req.body.type) {
+                post.likes = post.likes.filter(
+                    like => like.user.toString() !== req.user._id.toString()
+                );
+            } else {
+                // If different type, update the type
+                existingLike.type = req.body.type;
+            }
+        } else {
+            // Add new like/dislike
+            post.likes.push({
+                user: req.user._id,
+                type: req.body.type
+            });
+        }
+
+        await post.save();
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                likesCount: post.likesCount,
+                dislikesCount: post.dislikesCount
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
+// Get likes for a post
+exports.getLikes = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.postId)
+            .populate('likes.user', 'username');
+
+        if (!post) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Post not found'
+            });
+        }
+
+        res.status(200).json({
+            status: 'success',
+            data: {
+                likes: post.likes,
+                likesCount: post.likesCount,
+                dislikesCount: post.dislikesCount
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};

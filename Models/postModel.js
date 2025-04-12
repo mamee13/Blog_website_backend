@@ -48,7 +48,32 @@ const postSchema = new mongoose.Schema({
             type: Date, 
             default: Date.now
         }
-    }]
+    }],
+    // Added likes system
+    likes: [{
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        type: {
+            type: String,
+            enum: ['like', 'dislike'],
+            required: true
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    // Virtual fields for like counts
+    likesCount: {
+        type: Number,
+        default: 0
+    },
+    dislikesCount: {
+        type: Number,
+        default: 0
+    }
 },
 {
     toJSON: { virtuals: true },
@@ -58,6 +83,13 @@ const postSchema = new mongoose.Schema({
 // Update the updatedAt timestamp on save
 postSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
+    next();
+});
+
+// Calculate likes and dislikes before saving
+postSchema.pre('save', function(next) {
+    this.likesCount = this.likes.filter(like => like.type === 'like').length;
+    this.dislikesCount = this.likes.filter(like => like.type === 'dislike').length;
     next();
 });
 

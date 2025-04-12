@@ -1,97 +1,150 @@
 const User = require('../Models/UserModel');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+// const bcrypt = require('bcryptjs');
+// const jwt = require('jsonwebtoken');
 const catchAsync = require('../Utils/catchAsync');
 const AppError = require('../Utils/AppError');
-const { sendVerificationEmail } = require('../Utils/email');
+// const { sendVerificationEmail } = require('../Utils/email');
 
-exports.register = catchAsync(async (req, res, next) => {
-    const { username, email, password, passwordConfirm } = req.body;
+// exports.register = catchAsync(async (req, res, next) => {
+//     const { username, email, password, passwordConfirm } = req.body;
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        return next(new AppError('Email already in use', 400));
+//     // Check if user exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//         return next(new AppError('Email already in use', 400));
+//     }
+
+//     // Generate verification code
+//     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+//     const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+//     // Create user
+//     const hashedPassword = await bcrypt.hash(password, 12);
+//     const user = await User.create({
+//         username,
+//         email,
+//         password: hashedPassword,
+//         passwordConfirm,
+//         verificationCode,
+//         verificationCodeExpires,
+//         isVerified: false
+//     });
+
+//     // Send verification email
+//     await sendVerificationEmail(email, verificationCode);
+
+//     res.status(201).json({
+//         status: 'success',
+//         message: 'Verification code sent to your email'
+//     });
+// });
+
+// exports.verifyEmail = catchAsync(async (req, res, next) => {
+//     const { email, verificationCode } = req.body;
+
+//     const user = await User.findOne({
+//         email,
+//         verificationCode,
+//         verificationCodeExpires: { $gt: Date.now() }
+//     });
+
+//     if (!user) {
+//         return next(new AppError('Invalid or expired verification code', 400));
+//     }
+
+//     // Update user
+//     user.isVerified = true;
+//     user.verificationCode = undefined;
+//     user.verificationCodeExpires = undefined;
+//     await user.save();
+
+//     // Generate token
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+//     res.status(200).json({
+//         status: 'success',
+//         message: 'Email verified successfully',
+//         token
+//     });
+// });
+
+// exports.login = catchAsync(async (req, res, next) => {
+//     const { email, password } = req.body;
+
+//     // Check if email and password exist
+//     if (!email || !password) {
+//         return next(new AppError('Please provide email and password', 400));
+//     }
+
+//     const user = await User.findOne({ email });
+//     if (!user || !(await bcrypt.compare(password, user.password))) {
+//         return next(new AppError('Invalid credentials', 401));
+//     }
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    
+//     res.status(200).json({
+//         status: 'success',
+//         token,
+//         data: {
+//             user: {
+//                 id: user._id,
+//                 username: user.username,
+//                 email: user.email
+//             }
+//         }
+//     });
+// });
+
+exports.toggleBookmark = catchAsync(async (req, res, next) => {
+    const userId = req.user._id;
+    const postId = req.params.postId;
+
+    const user = await User.findById(userId);
+    
+    if (!user) {
+        return next(new AppError('User not found', 404));
     }
 
-    // Generate verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const bookmarkIndex = user.bookmarks.findIndex(
+        bookmark => bookmark.post.toString() === postId
+    );
 
-    // Create user
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await User.create({
-        username,
-        email,
-        password: hashedPassword,
-        passwordConfirm,
-        verificationCode,
-        verificationCodeExpires,
-        isVerified: false
-    });
+    if (bookmarkIndex > -1) {
+        // Remove bookmark if exists
+        user.bookmarks.splice(bookmarkIndex, 1);
+    } else {
+        // Add new bookmark
+        user.bookmarks.push({ post: postId });
+    }
 
-    // Send verification email
-    await sendVerificationEmail(email, verificationCode);
+    await user.save();
 
-    res.status(201).json({
+    res.status(200).json({
         status: 'success',
-        message: 'Verification code sent to your email'
+        message: bookmarkIndex > -1 ? 'Bookmark removed' : 'Post bookmarked',
+        data: {
+            bookmarks: user.bookmarks
+        }
     });
 });
 
-exports.verifyEmail = catchAsync(async (req, res, next) => {
-    const { email, verificationCode } = req.body;
+exports.getBookmarks = catchAsync(async (req, res, next) => {
+    const userId = req.user._id;
 
-    const user = await User.findOne({
-        email,
-        verificationCode,
-        verificationCodeExpires: { $gt: Date.now() }
+    const user = await User.findById(userId).populate({
+        path: 'bookmarks.post',
+        select: 'title content author createdAt'
     });
 
     if (!user) {
-        return next(new AppError('Invalid or expired verification code', 400));
+        return next(new AppError('User not found', 404));
     }
-
-    // Update user
-    user.isVerified = true;
-    user.verificationCode = undefined;
-    user.verificationCodeExpires = undefined;
-    await user.save();
-
-    // Generate token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.status(200).json({
         status: 'success',
-        message: 'Email verified successfully',
-        token
-    });
-});
-
-exports.login = catchAsync(async (req, res, next) => {
-    const { email, password } = req.body;
-
-    // Check if email and password exist
-    if (!email || !password) {
-        return next(new AppError('Please provide email and password', 400));
-    }
-
-    const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-        return next(new AppError('Invalid credentials', 401));
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    
-    res.status(200).json({
-        status: 'success',
-        token,
         data: {
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email
-            }
+            bookmarks: user.bookmarks
         }
     });
 });
