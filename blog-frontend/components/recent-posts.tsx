@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { formatDate } from "@/lib/utils"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { formatDate, API_URL } from "@/lib/utils"
 
 interface Post {
   _id: string
   title: string
-  summary: string
+  content: string
   author: {
-    name: string
+    _id: string
+    username: string
   }
   createdAt: string
-  slug: string
+  category: string
 }
 
 export default function RecentPosts() {
@@ -24,68 +24,16 @@ export default function RecentPosts() {
   useEffect(() => {
     const fetchRecentPosts = async () => {
       try {
-        // In a real app, you would fetch from your API
-        // const response = await fetch('/api/posts?limit=6');
-        // const data = await response.json();
-
-        // For demo purposes, we'll use mock data
-        setTimeout(() => {
-          setPosts([
-            {
-              _id: "4",
-              title: "Introduction to TypeScript",
-              summary: "Learn the basics of TypeScript and how it can improve your JavaScript development experience.",
-              author: { name: "Sarah Williams" },
-              createdAt: "2023-04-02T11:45:00Z",
-              slug: "introduction-to-typescript",
-            },
-            {
-              _id: "5",
-              title: "Mastering Git Workflows",
-              summary: "Improve your team collaboration with effective Git branching strategies and workflows.",
-              author: { name: "Michael Brown" },
-              createdAt: "2023-03-28T16:30:00Z",
-              slug: "mastering-git-workflows",
-            },
-            {
-              _id: "6",
-              title: "Responsive Web Design Principles",
-              summary: "Essential principles and techniques for creating websites that work well on any device.",
-              author: { name: "Emily Davis" },
-              createdAt: "2023-03-25T13:20:00Z",
-              slug: "responsive-web-design-principles",
-            },
-            {
-              _id: "7",
-              title: "JavaScript Promises and Async/Await",
-              summary: "A deep dive into asynchronous JavaScript with Promises and the async/await syntax.",
-              author: { name: "David Wilson" },
-              createdAt: "2023-03-20T09:10:00Z",
-              slug: "javascript-promises-and-async-await",
-            },
-            {
-              _id: "8",
-              title: "Getting Started with Docker",
-              summary:
-                "Learn how to containerize your applications with Docker for consistent development and deployment.",
-              author: { name: "Lisa Taylor" },
-              createdAt: "2023-03-15T14:50:00Z",
-              slug: "getting-started-with-docker",
-            },
-            {
-              _id: "9",
-              title: "Introduction to GraphQL",
-              summary:
-                "Discover how GraphQL can improve your API development and provide more efficient data fetching.",
-              author: { name: "Robert Johnson" },
-              createdAt: "2023-03-10T10:05:00Z",
-              slug: "introduction-to-graphql",
-            },
-          ])
-          setLoading(false)
-        }, 1000)
+        const response = await fetch(`${API_URL}/posts?limit=6`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('jwt')}`
+          }
+        })
+        const data = await response.json()
+        setPosts(data.posts || data)
       } catch (error) {
-        console.error("Error fetching recent posts:", error)
+        console.error('Error fetching recent posts:', error)
+      } finally {
         setLoading(false)
       }
     }
@@ -94,42 +42,37 @@ export default function RecentPosts() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-6 w-3/4" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-16 w-full" />
-            </CardContent>
-            <CardFooter>
-              <Skeleton className="h-4 w-1/2" />
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-    )
+    return <div>Loading recent posts...</div>
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {posts.map((post) => (
-        <Link href={`/posts/${post.slug}`} key={post._id}>
-          <Card className="h-full hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="line-clamp-2">{post.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground line-clamp-3">{post.summary}</p>
-            </CardContent>
-            <CardFooter className="flex justify-between text-sm text-muted-foreground">
-              <span>By {post.author.name}</span>
+        <Card key={post._id} className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-xl">
+              <Link href={`/posts/${post._id}`} className="hover:text-primary">
+                {post.title}
+              </Link>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              {post.content.substring(0, 120)}...
+            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>By {post.author.username}</span>
+              <span>•</span>
               <span>{formatDate(post.createdAt)}</span>
-            </CardFooter>
-          </Card>
-        </Link>
+              {post.category && (
+                <>
+                  <span>•</span>
+                  <span>{post.category}</span>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   )

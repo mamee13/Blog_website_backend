@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { formatDate } from "@/lib/utils"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { formatDate, API_URL } from "@/lib/utils"
 
 interface Post {
   _id: string
   title: string
-  summary: string
+  content: string
   author: {
-    name: string
+    _id: string
+    username: string
   }
   createdAt: string
-  slug: string
+  category: string
 }
 
 export default function FeaturedPosts() {
@@ -24,43 +24,16 @@ export default function FeaturedPosts() {
   useEffect(() => {
     const fetchFeaturedPosts = async () => {
       try {
-        // In a real app, you would fetch from your API
-        // const response = await fetch('/api/posts/featured');
-        // const data = await response.json();
-
-        // For demo purposes, we'll use mock data
-        setTimeout(() => {
-          setPosts([
-            {
-              _id: "1",
-              title: "Getting Started with React Hooks",
-              summary: "Learn how to use React Hooks to simplify your components and manage state effectively.",
-              author: { name: "Jane Doe" },
-              createdAt: "2023-04-15T10:30:00Z",
-              slug: "getting-started-with-react-hooks",
-            },
-            {
-              _id: "2",
-              title: "Building RESTful APIs with Node.js",
-              summary: "A comprehensive guide to building scalable and maintainable APIs using Node.js and Express.",
-              author: { name: "John Smith" },
-              createdAt: "2023-04-10T14:20:00Z",
-              slug: "building-restful-apis-with-nodejs",
-            },
-            {
-              _id: "3",
-              title: "CSS Grid vs Flexbox: When to Use Each",
-              summary:
-                "Understanding the differences between CSS Grid and Flexbox and knowing when to use each layout method.",
-              author: { name: "Alex Johnson" },
-              createdAt: "2023-04-05T09:15:00Z",
-              slug: "css-grid-vs-flexbox",
-            },
-          ])
-          setLoading(false)
-        }, 1000)
+        const response = await fetch(`${API_URL}/posts?featured=true&limit=3`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('jwt')}`
+          }
+        })
+        const data = await response.json()
+        setPosts(data.posts || data)
       } catch (error) {
-        console.error("Error fetching featured posts:", error)
+        console.error('Error fetching featured posts:', error)
+      } finally {
         setLoading(false)
       }
     }
@@ -69,47 +42,39 @@ export default function FeaturedPosts() {
   }, [])
 
   if (loading) {
-    return (
-      <section className="py-12">
-        <h2 className="text-3xl font-bold mb-8">Featured Posts</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-24 w-full" />
-              </CardContent>
-              <CardFooter>
-                <Skeleton className="h-4 w-1/2" />
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </section>
-    )
+    return <div>Loading featured posts...</div>
   }
 
   return (
     <section className="py-12">
       <h2 className="text-3xl font-bold mb-8">Featured Posts</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {posts.map((post) => (
-          <Link href={`/posts/${post.slug}`} key={post._id}>
-            <Card className="h-full hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle>{post.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{post.summary}</p>
-              </CardContent>
-              <CardFooter className="flex justify-between text-sm text-muted-foreground">
-                <span>By {post.author.name}</span>
+          <Card key={post._id} className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle className="text-xl">
+                <Link href={`/posts/${post._id}`} className="hover:text-primary">
+                  {post.title}
+                </Link>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                {post.content.substring(0, 120)}...
+              </p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>By {post.author.username}</span>
+                <span>•</span>
                 <span>{formatDate(post.createdAt)}</span>
-              </CardFooter>
-            </Card>
-          </Link>
+                {post.category && (
+                  <>
+                    <span>•</span>
+                    <span>{post.category}</span>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </section>
