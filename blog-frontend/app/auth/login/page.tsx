@@ -42,6 +42,9 @@ export default function LoginPage() {
       // Store the token in localStorage
       localStorage.setItem("jwt", data.token)
 
+      // Dispatch login event
+      window.dispatchEvent(new Event('auth-login'))
+
       // Redirect to posts page
       router.push("/posts")
     } catch (err) {

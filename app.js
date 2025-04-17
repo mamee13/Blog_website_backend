@@ -13,11 +13,18 @@ dotenv.config({ path: './Config.env' });
 const app = express();
 
 // Middleware
+// CORS Configuration
 app.use(cors({
-  origin: 'http://localhost:3000', // Replace with your frontend URL
-  credentials: true
+    origin: 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization']
 }));
-app.use(express.json()); // Parse JSON bodies
+
+// Make sure these are set before your routes
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use('/images', express.static('public/images'));
 
 // Connect to MongoDB

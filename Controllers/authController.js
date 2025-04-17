@@ -96,17 +96,26 @@ exports.login = catchAsync(async (req, res, next) => {
     // Generate token
     const token = signToken(user._id);
 
-    res.status(200).json({
-        status: 'success',
-        token,
-        data: {
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email
+    // When sending the response, make sure to:
+    res.status(200)
+        .cookie('jwt', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        })
+        .json({
+            status: 'success',
+            token,
+            data: {
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                }
             }
-        }
-    });
+        });
 });
 
 exports.protect = catchAsync(async (req, res, next) => {

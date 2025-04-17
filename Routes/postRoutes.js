@@ -8,6 +8,9 @@ const router = express.Router();
 // Public routes
 router.get('/', postController.getPosts);
 
+// Create new post route (add this)
+router.post('/', protect, postController.uploadPostImage, postController.createPost);
+
 // Bookmark routes (place these BEFORE the :id routes)
 router.get('/bookmarks', protect, userController.getBookmarks);
 router.post('/:postId/bookmark', protect, userController.toggleBookmark);

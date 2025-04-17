@@ -20,39 +20,45 @@ export default function Navbar() {
   const [user, setUser] = useState<{ name: string } | null>(null)
   const router = useRouter()
 
-  // Update isLoggedIn whenever the JWT token changes in localStorage
-  useEffect(() => {
-    const checkLogin = () => {
-      const token = localStorage.getItem("jwt")
-      setIsLoggedIn(!!token)
-      setUser(token ? { name: "User" } : null)
+  const checkLogin = () => {
+    const token = localStorage.getItem("jwt")
+    try {
+      if (token) {
+        setIsLoggedIn(true)
+        setUser({ name: "User" })
+      } else {
+        setIsLoggedIn(false)
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Error checking login state:', error)
+      setIsLoggedIn(false)
+      setUser(null)
     }
+  }
 
-    checkLogin()
+  useEffect(() => {
+    checkLogin() // Initial check
 
-    // Listen for storage events (cross-tab login/logout)
+    // Add event listeners
+    window.addEventListener("auth-login", checkLogin)
+    window.addEventListener("auth-logout", checkLogin)
     window.addEventListener("storage", checkLogin)
 
+    // Force check login status every second (temporary solution)
+    const interval = setInterval(checkLogin, 1000)
+
     return () => {
+      window.removeEventListener("auth-login", checkLogin)
+      window.removeEventListener("auth-logout", checkLogin)
       window.removeEventListener("storage", checkLogin)
+      clearInterval(interval)
     }
   }, [])
 
-  // Optionally, also check on route change (if using Next.js router events)
-  // useEffect(() => {
-  //   const handleRouteChange = () => {
-  //     const token = localStorage.getItem("jwt")
-  //     setIsLoggedIn(!!token)
-  //     setUser(token ? { name: "User" } : null)
-  //   }
-  //   router.events?.on("routeChangeComplete", handleRouteChange)
-  //   return () => {
-  //     router.events?.off("routeChangeComplete", handleRouteChange)
-  //   }
-  // }, [router])
-
   const handleLogout = () => {
-    localStorage.removeItem("jwt")
+    localStorage.removeItem("jwt")  // Changed from "token" to "jwt"
+    localStorage.removeItem("user")
     setIsLoggedIn(false)
     setUser(null)
     router.push("/")
@@ -206,3 +212,5 @@ export default function Navbar() {
     </header>
   )
 }
+
+// Remove the duplicate Navbar const declaration at the bottom
