@@ -39,7 +39,12 @@ export default function RegisterPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password, passwordConfirm }),
+        body: JSON.stringify({ 
+          username: name, // Changed from 'name' to 'username'
+          email, 
+          password, 
+          passwordConfirm 
+        }),
       })
 
       const data = await response.json()

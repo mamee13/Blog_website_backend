@@ -133,3 +133,45 @@ exports.protect = catchAsync(async (req, res, next) => {
     req.user = user;
     next();
 });
+
+
+// Get current user's profile
+exports.getProfile = catchAsync(async (req, res, next) => {
+    const user = await User.findById(req.user.id).select('-password -verificationCode -verificationCodeExpires');
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+    res.status(200).json({
+        status: 'success',
+        data: {
+            user
+        }
+    });
+});
+
+// Update current user's profile
+exports.updateProfile = catchAsync(async (req, res, next) => {
+    // Only allow updating certain fields
+    const allowedFields = ['username', 'email'];
+    const updates = {};
+    allowedFields.forEach(field => {
+        if (req.body[field]) updates[field] = req.body[field];
+    });
+
+    const user = await User.findByIdAndUpdate(req.user.id, updates, {
+        new: true,
+        runValidators: true,
+        select: '-password -verificationCode -verificationCodeExpires'
+    });
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            user
+        }
+    });
+});

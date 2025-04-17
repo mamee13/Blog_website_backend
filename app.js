@@ -13,7 +13,10 @@ dotenv.config({ path: './Config.env' });
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Replace with your frontend URL
+  credentials: true
+}));
 app.use(express.json()); // Parse JSON bodies
 app.use('/images', express.static('public/images'));
 

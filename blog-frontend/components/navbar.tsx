@@ -20,16 +20,36 @@ export default function Navbar() {
   const [user, setUser] = useState<{ name: string } | null>(null)
   const router = useRouter()
 
+  // Update isLoggedIn whenever the JWT token changes in localStorage
   useEffect(() => {
-    // Check if user is logged in by looking for JWT token in localStorage
-    const token = localStorage.getItem("jwt")
-    if (token) {
-      setIsLoggedIn(true)
-      // For demo purposes, we'll just set a placeholder user
-      // In a real app, you might decode the JWT or fetch user data
-      setUser({ name: "User" })
+    const checkLogin = () => {
+      const token = localStorage.getItem("jwt")
+      setIsLoggedIn(!!token)
+      setUser(token ? { name: "User" } : null)
+    }
+
+    checkLogin()
+
+    // Listen for storage events (cross-tab login/logout)
+    window.addEventListener("storage", checkLogin)
+
+    return () => {
+      window.removeEventListener("storage", checkLogin)
     }
   }, [])
+
+  // Optionally, also check on route change (if using Next.js router events)
+  // useEffect(() => {
+  //   const handleRouteChange = () => {
+  //     const token = localStorage.getItem("jwt")
+  //     setIsLoggedIn(!!token)
+  //     setUser(token ? { name: "User" } : null)
+  //   }
+  //   router.events?.on("routeChangeComplete", handleRouteChange)
+  //   return () => {
+  //     router.events?.off("routeChangeComplete", handleRouteChange)
+  //   }
+  // }, [router])
 
   const handleLogout = () => {
     localStorage.removeItem("jwt")

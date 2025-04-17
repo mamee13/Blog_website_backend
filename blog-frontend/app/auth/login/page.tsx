@@ -42,14 +42,17 @@ export default function LoginPage() {
       // Store the token in localStorage
       localStorage.setItem("jwt", data.token)
 
-      // Redirect to home page
-      router.push("/")
+      // Redirect to posts page
+      router.push("/posts")
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during login")
     } finally {
       setLoading(false)
     }
   }
+
+  // Check if user is logged in
+  const isLoggedIn = typeof window !== "undefined" && localStorage.getItem("jwt")
 
   return (
     <div className="container mx-auto px-4 py-12 flex justify-center">
@@ -101,10 +104,14 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-center text-sm">
-            Don't have an account?{" "}
-            <Link href="/auth/register" className="text-primary hover:underline">
-              Register
-            </Link>
+            {!isLoggedIn && (
+              <>
+                Don't have an account?{" "}
+                <Link href="/auth/register" className="text-primary hover:underline">
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </CardFooter>
       </Card>

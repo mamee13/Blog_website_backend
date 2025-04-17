@@ -12,10 +12,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { API_URL } from "@/lib/utils"
 
 interface User {
   _id: string
-  name: string
+  username: string
   email: string
 }
 
@@ -32,7 +33,7 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [name, setName] = useState("")
+  const [username, setUsername] = useState("") // <-- changed from name/setName
   const [email, setEmail] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -51,45 +52,17 @@ export default function ProfilePage() {
 
     const fetchUserData = async () => {
       try {
-        // In a real app, you would fetch from your API
-        // const response = await fetch(`${API_URL}/users/me`, {
-        //   headers: {
-        //     'Authorization': `Bearer ${token}`
-        //   }
-        // });
-        // const data = await response.json();
-
-        // For demo purposes, we'll use mock data
-        setTimeout(() => {
-          const mockUser = {
-            _id: "user123",
-            name: "John Doe",
-            email: "john@example.com",
+        const response = await fetch(`${API_URL}/users/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-
-          const mockPosts = [
-            {
-              _id: "1",
-              title: "Getting Started with React Hooks",
-              summary: "Learn how to use React Hooks to simplify your components and manage state effectively.",
-              createdAt: "2023-04-15T10:30:00Z",
-              slug: "getting-started-with-react-hooks",
-            },
-            {
-              _id: "2",
-              title: "Building RESTful APIs with Node.js",
-              summary: "A comprehensive guide to building scalable and maintainable APIs using Node.js and Express.",
-              createdAt: "2023-04-10T14:20:00Z",
-              slug: "building-restful-apis-with-nodejs",
-            },
-          ]
-
-          setUser(mockUser)
-          setName(mockUser.name)
-          setEmail(mockUser.email)
-          setPosts(mockPosts)
-          setLoading(false)
-        }, 1000)
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.message || "Failed to load profile data")
+        setUser(data.data.user)
+        setUsername(data.data.user.username) // <-- changed from setName
+        setEmail(data.data.user.email)
+        setLoading(false)
       } catch (err) {
         setError("Failed to load profile data")
         setLoading(false)
@@ -106,32 +79,73 @@ export default function ProfilePage() {
     setUpdateLoading(true)
 
     try {
-      // In a real app, you would call your API
-      // const response = await fetch(`${API_URL}/users/updateMe`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     "Authorization": `Bearer ${localStorage.getItem("jwt")}`
-      //   },
-      //   body: JSON.stringify({ name, email }),
-      // });
-      //
-      // const data = await response.json();
-      //
-      // if (!response.ok) {
-      //   throw new Error(data.message || "Failed to update profile");
-      // }
-
-      // For demo purposes, we'll just simulate success
-      setTimeout(() => {
-        setUpdateSuccess("Profile updated successfully")
-        setUpdateLoading(false)
-      }, 1000)
+      const token = localStorage.getItem("jwt")
+      const response = await fetch(`${API_URL}/users/profile`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ username, email }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update profile")
+      }
+      setUpdateSuccess("Profile updated successfully")
+      setUser(data.data.user)
+      setUsername(data.data.user.username)
+      setEmail(data.data.user.email)
+      setUpdateLoading(false)
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : "An error occurred while updating profile")
       setUpdateLoading(false)
     }
   }
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setUpdateSuccess("")
+    setUpdateError("")
+
+    if (newPassword !== passwordConfirm) {
+      setUpdateError("New passwords do not match")
+      return
+    }
+
+    setUpdateLoading(true)
+
+    // try {
+    //   // In a real app, you would call your API
+    //   // const response = await fetch(`${API_URL}/users/updateMyPassword`, {
+    //   //   method: "PATCH",
+    //   //   headers: {
+    //   //     "Content-Type": "application/json",
+    //   //     "Authorization": `Bearer ${localStorage.getItem("jwt")}`
+    //   //   },
+    //   //   body: JSON.stringify({
+    //   //     passwordCurrent: currentPassword,
+    //   //     password: newPassword,
+    //   //     passwordConfirm
+    //   //   }),
+    //   // });
+    //   //
+    //   // const data = await response.json();
+    //   //
+    //   // if (!response.ok) {
+    //   //   throw new Error(data.message || "Failed to update password");
+    //   // }
+
+    //   // For demo purposes, we'll just simulate success
+    //   setTimeout(() => {
+    //     setUpdateSuccess("Profile updated successfully")
+    //     setUpdateLoading(false)
+    //   }, 1000)
+    // } catch (err) {
+    //   setUpdateError(err instanceof Error ? err.message : "An error occurred while updating profile")
+    //   setUpdateLoading(false)
+    // }
+  // }
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -249,8 +263,8 @@ export default function ProfilePage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                    <Label htmlFor="username">Username</Label>
+                    <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
                   </div>
 
                   <div className="space-y-2">
@@ -372,4 +386,5 @@ export default function ProfilePage() {
       </div>
     </div>
   )
+}
 }
