@@ -129,21 +129,34 @@ exports.protect = catchAsync(async (req, res, next) => {
     }
 
     if (!token) {
-        return next(new AppError('You are not logged in. Please log in to get access', 401));
+        return res.status(401).json({
+            status: 'error',
+            message: 'You are not logged in. Please log in to get access'
+        });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    try {
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check if user still exists
-    const user = await User.findById(decoded.id);
-    if (!user) {
-        return next(new AppError('The user belonging to this token no longer exists', 401));
+        // Check if user still exists
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'The user belonging to this token no longer exists'
+            });
+        }
+
+        // Grant access to protected route
+        req.user = user;
+        next();
+    } catch (err) {
+        return res.status(401).json({
+            status: 'error',
+            message: 'Invalid token or token expired'
+        });
     }
-
-    // Grant access to protected route
-    req.user = user;
-    next();
 });
 
 

@@ -5,6 +5,13 @@ import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { formatDate, API_URL } from "@/lib/utils"
 
+// Add this function at the top of your file, after the imports
+const stripHtmlTags = (html: string) => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
 interface Post {
   _id: string
   title: string
@@ -60,10 +67,10 @@ export default function PostsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground mb-4">
-                {post.content.substring(0, 150)}...
+                {stripHtmlTags(post.content).substring(0, 150)}...
               </p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>By {post.author.username}</span>  {/* Changed from author.name to author.username */}
+                <span>By {post.author.username}</span>
                 <span>•</span>
                 <span>{formatDate(post.createdAt)}</span>
                 {post.category && (

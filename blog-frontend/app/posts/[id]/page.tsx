@@ -21,6 +21,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+
+// Update Post interface
 interface Post {
   _id: string
   title: string
@@ -32,7 +34,19 @@ interface Post {
   createdAt: string
   updatedAt: string
   category: string
+  likes: Like[]  // Reference the Like interface here
+  likesCount: number
+  dislikesCount: number
 }
+
+// Add Like interface
+interface Like {
+  user: string
+  type: 'like' | 'dislike'
+}
+
+// Add these imports
+import { ThumbsUp, ThumbsDown } from "lucide-react"
 
 export default function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -42,19 +56,82 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
   const [error, setError] = useState<string | null>(null)
   const [isAuthor, setIsAuthor] = useState(false)
 
+  const [likeStatus, setLikeStatus] = useState<'like' | 'dislike' | null>(null)
+const [likesCount, setLikesCount] = useState(0)
+const [dislikesCount, setDislikesCount] = useState(0)
+
+// Add this function before the return statement
+const handleLikeDislike = async (type: 'like' | 'dislike') => {
+  try {
+    const token = localStorage.getItem('jwt')
+    if (!token || !post) return
+
+    // Optimistically update UI first
+    const newLikeStatus = likeStatus === type ? null : type
+    setLikeStatus(newLikeStatus)
+
+    const response = await fetch(`${API_URL}/posts/${post._id}/like`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ type })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Server response:', errorText)
+      throw new Error('Failed to update like status')
+    }
+
+    // Get updated likes count
+    const likesResponse = await fetch(`${API_URL}/posts/${post._id}/likes`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      }
+    })
+
+    if (!likesResponse.ok) {
+      throw new Error('Failed to fetch updated likes count')
+    }
+
+    const { data } = await likesResponse.json()
+    
+    // Update states with the actual data from server
+    setLikesCount(data.likesCount)
+    setDislikesCount(data.dislikesCount)
+    
+    // Update post state with new data
+    if (post) {
+      setPost({
+        ...post,
+        likes: data.likes,
+        likesCount: data.likesCount,
+        dislikesCount: data.dislikesCount
+      })
+    }
+  } catch (err) {
+    console.error('Error updating like status:', err)
+    // Revert optimistic update on error
+    setLikeStatus(likeStatus)
+  }
+}
+
+
+
   useEffect(() => {
     const fetchPost = async () => {
       try {
         const token = localStorage.getItem('jwt')
         
-        // Check if token exists and is properly formatted
         if (!token) {
           throw new Error("Please login to view this post")
         }
 
         const response = await fetch(`${API_URL}/posts/${resolvedParams.id}`, {
           headers: {
-            'Authorization': `Bearer ${token.trim()}`, // Ensure token is properly formatted
+            'Authorization': `Bearer ${token.trim()}`,
             'Content-Type': 'application/json'
           }
         })
@@ -66,20 +143,20 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         if (!response.ok) throw new Error("Failed to load post")
         
         const data = await response.json()
-        setPost(data.post || data)
+        const postData = data.post || data
+        setPost(postData)
         
-        // Only check author status if we have a valid token
-        try {
-          const userResponse = await fetch(`${API_URL}/users/me`, {
-            headers: {
-              'Authorization': `Bearer ${token.trim()}`
-            }
-          })
-          const userData = await userResponse.json()
-          setIsAuthor(userData._id === (data.post || data).author._id)
-        } catch (err) {
-          console.error('Error checking author status:', err)
-        }
+        // Initialize like counts and status
+        setLikesCount(postData.likesCount || 0)
+        setDislikesCount(postData.dislikesCount || 0)
+        
+        // Get user ID from token
+        const tokenData = JSON.parse(atob(token.split('.')[1]))
+        setIsAuthor(tokenData.id === postData.author._id)
+        
+        // Set initial like status
+        const userLike = postData.likes?.find((like: Like) => like.user === tokenData.id)
+        setLikeStatus(userLike?.type || null)
         
         setLoading(false)
       } catch (err) {
@@ -87,7 +164,6 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         setError(errorMessage)
         setLoading(false)
         
-        // If token is invalid, redirect to login
         if (errorMessage.includes("login")) {
           router.push('/auth/login')
         }
@@ -204,9 +280,32 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         </div>
 
         <div
-          className="prose prose-lg dark:prose-invert max-w-none"
+          className="prose prose-lg dark:prose-invert max-w-none mb-8"
           dangerouslySetInnerHTML={{ __html: post?.content || '' }}
         />
+
+        {/* Like/dislike buttons moved to bottom */}
+        <div className="flex items-center gap-4 mt-8 border-t pt-6">
+          <Button
+            variant={likeStatus === 'like' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleLikeDislike('like')}
+            className="flex items-center gap-2"
+          >
+            <ThumbsUp className="h-4 w-4" />
+            <span>{likesCount}</span>
+          </Button>
+
+          <Button
+            variant={likeStatus === 'dislike' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleLikeDislike('dislike')}
+            className="flex items-center gap-2"
+          >
+            <ThumbsDown className="h-4 w-4" />
+            <span>{dislikesCount}</span>
+          </Button>
+        </div>
       </div>
     </div>
   )
