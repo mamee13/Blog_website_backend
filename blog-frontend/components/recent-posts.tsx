@@ -61,7 +61,7 @@ export default function RecentPosts() {
               {post.content.substring(0, 120)}...
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>By {post.author.username}</span>
+              <span>By {post.author?.username || 'Unknown Author'}</span>
               <span>•</span>
               <span>{formatDate(post.createdAt)}</span>
               {post.category && (

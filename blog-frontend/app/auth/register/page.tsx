@@ -19,13 +19,14 @@ export default function RegisterPage() {
   const [passwordConfirm, setPasswordConfirm] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [verificationCode, setVerificationCode] = useState("")
+  const [showVerification, setShowVerification] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    // Validate password match
     if (password !== passwordConfirm) {
       setError("Passwords do not match")
       return
@@ -40,7 +41,7 @@ export default function RegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          username: name, // Changed from 'name' to 'username'
+          username: name,
           email, 
           password, 
           passwordConfirm 
@@ -53,16 +54,79 @@ export default function RegisterPage() {
         throw new Error(data.message || "Registration failed")
       }
 
-      // Store the token in localStorage
-      localStorage.setItem("jwt", data.token)
-
-      // Redirect to home page
-      router.push("/")
+      setShowVerification(true)
+      setLoading(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during registration")
+      setLoading(false)
+    }
+  }
+
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/users/verify-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          email,
+          verificationCode 
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Verification failed")
+      }
+
+      // Only store token and redirect after successful verification
+      localStorage.setItem("jwt", data.token)
+      router.push("/")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed")
     } finally {
       setLoading(false)
     }
+  }
+
+  if (showVerification) {
+    return (
+      <div className="container mx-auto px-4 py-12 flex justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+            <CardDescription>Enter the verification code sent to your email</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleVerification} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="verificationCode">Verification Code</Label>
+                <Input
+                  id="verificationCode"
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Verifying..." : "Verify Email"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

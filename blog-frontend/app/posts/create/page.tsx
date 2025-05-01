@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert" // Add Alert import
 import { API_URL } from "@/lib/utils"
 
 export default function CreatePost() {
@@ -67,6 +68,12 @@ export default function CreatePost() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label htmlFor="title" className="block text-sm font-medium mb-1">

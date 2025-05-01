@@ -27,6 +27,11 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  // Add allowedDevOrigins configuration
+  allowedDevOrigins: [
+    'http://localhost:3000',
+    'http://10.194.119.17'
+  ]
 }
 
 if (userConfig) {

@@ -24,25 +24,28 @@ exports.signup = catchAsync(async (req, res, next) => {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Create new user
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const newUser = await User.create({
-        username,
-        email,
-        password: hashedPassword,
-        passwordConfirm,
-        verificationCode,
-        verificationCodeExpires,
-        isVerified: false
-    });
+    try {
+        // Create new user
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const newUser = await User.create({
+            username,
+            email,
+            password: hashedPassword,
+            verificationCode,
+            verificationCodeExpires,
+            isVerified: false
+        });
 
-    // Send verification email
-    await sendVerificationEmail(email, verificationCode);
+        // Send verification email
+        await sendVerificationEmail(email, verificationCode);
 
-    res.status(201).json({
-        status: 'success',
-        message: 'Verification code sent to your email'
-    });
+        res.status(201).json({
+            status: 'success',
+            message: 'Verification code sent to your email'
+        });
+    } catch (error) {
+        return next(new AppError('Failed to send verification email', 500));
+    }
 });
 
 exports.verifyEmail = catchAsync(async (req, res, next) => {
