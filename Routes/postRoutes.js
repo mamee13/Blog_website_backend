@@ -10,9 +10,7 @@ router.get('/', postController.getPosts);
 
 // Create new post route (add this)
 router.post('/', protect, postController.uploadPostImage, postController.createPost);
-
 // Bookmark routes (place these BEFORE the :id routes)
-// Change these lines
 router.get('/bookmarks', protect, postController.getBookmarks);
 router.post('/:postId/bookmark', protect, postController.toggleBookmark);
 
