@@ -22,7 +22,7 @@ const postSchema = new mongoose.Schema({
     category: {
         type: String,
         required: [true, 'A post must have a category'],
-        enum: ['Technology', 'Travel', 'Food', 'Sport','Lifestyle', 'Other']
+        enum: ['Technology', 'Travel', 'Food', 'Sport', 'Lifestyle', 'Other']
     },
     createdAt: {
         type: Date,
@@ -32,20 +32,20 @@ const postSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    tags: [{ 
+    tags: [{
         type: String
     }],
     comments: [{
-        text: { 
-            type: String, 
-            required: true 
+        text: {
+            type: String,
+            required: true
         },
-        user: { 
-            type: mongoose.Schema.Types.ObjectId, 
-            ref: 'User' 
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
         },
-        createdAt: { 
-            type: Date, 
+        createdAt: {
+            type: Date,
             default: Date.now
         }
     }],
@@ -73,23 +73,44 @@ const postSchema = new mongoose.Schema({
     dislikesCount: {
         type: Number,
         default: 0
+    },
+    bookmarks: [{
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    bookmarkCount: {
+        type: Number,
+        default: 0
     }
+
 },
-{
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
-});
+    {
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
+    });
 
 // Update the updatedAt timestamp on save
-postSchema.pre('save', function(next) {
+postSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     next();
 });
 
 // Calculate likes and dislikes before saving
-postSchema.pre('save', function(next) {
+postSchema.pre('save', function (next) {
     this.likesCount = this.likes.filter(like => like.type === 'like').length;
     this.dislikesCount = this.likes.filter(like => like.type === 'dislike').length;
+    next();
+});
+
+// Add this after the likes calculation middleware
+postSchema.pre('save', function (next) {
+    this.bookmarkCount = this.bookmarks.length;
     next();
 });
 

@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDate, API_URL } from "@/lib/utils"
 import { Edit, Trash2, ArrowLeft } from "lucide-react"
+import { ThumbsUp, ThumbsDown } from "lucide-react"
+import { Bookmark } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +24,20 @@ import {
 } from "@/components/ui/alert-dialog"
 
 
+// Add Like interface
+interface Like {
+  user: string
+  type: 'like' | 'dislike'
+}
+
+// Add Bookmark interface after Like interface
+interface Bookmark {
+  user: string
+  createdAt: string
+  _id: string
+  id: string
+}
+
 // Update Post interface
 interface Post {
   _id: string
@@ -34,19 +50,15 @@ interface Post {
   createdAt: string
   updatedAt: string
   category: string
-  likes: Like[]  // Reference the Like interface here
+  likes: Like[]
   likesCount: number
   dislikesCount: number
-}
-
-// Add Like interface
-interface Like {
-  user: string
-  type: 'like' | 'dislike'
+  bookmarks: Bookmark[]
+  bookmarkCount: number
 }
 
 // Add these imports
-import { ThumbsUp, ThumbsDown } from "lucide-react"
+
 
 export default function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -54,69 +66,101 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Add after other state declarations
   const [isAuthor, setIsAuthor] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(false)  // Add this line
 
   const [likeStatus, setLikeStatus] = useState<'like' | 'dislike' | null>(null)
-const [likesCount, setLikesCount] = useState(0)
-const [dislikesCount, setDislikesCount] = useState(0)
+  const [likesCount, setLikesCount] = useState(0)
+  const [dislikesCount, setDislikesCount] = useState(0)
 
-// Add this function before the return statement
-const handleLikeDislike = async (type: 'like' | 'dislike') => {
-  try {
-    const token = localStorage.getItem('jwt')
-    if (!token || !post) return
-
-    // Optimistically update UI first
-    const newLikeStatus = likeStatus === type ? null : type
-    setLikeStatus(newLikeStatus)
-
-    const response = await fetch(`${API_URL}/posts/${post._id}/like`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ type })
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Server response:', errorText)
-      throw new Error('Failed to update like status')
-    }
-
-    // Get updated likes count
-    const likesResponse = await fetch(`${API_URL}/posts/${post._id}/likes`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      }
-    })
-
-    if (!likesResponse.ok) {
-      throw new Error('Failed to fetch updated likes count')
-    }
-
-    const { data } = await likesResponse.json()
-    
-    // Update states with the actual data from server
-    setLikesCount(data.likesCount)
-    setDislikesCount(data.dislikesCount)
-    
-    // Update post state with new data
-    if (post) {
-      setPost({
-        ...post,
-        likes: data.likes,
-        likesCount: data.likesCount,
-        dislikesCount: data.dislikesCount
+  // Add after handleLikeDislike function
+  // Add this state with other states
+  const [bookmarkCount, setBookmarkCount] = useState(0)
+  
+  // Modify the handleBookmark function
+  const handleBookmark = async () => {
+    try {
+      const token = localStorage.getItem('jwt')
+      if (!token || !post) return
+  
+      setIsBookmarked(!isBookmarked)
+      setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1)
+  
+      const response = await fetch(`${API_URL}/posts/${post._id}/bookmark`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
+  
+      if (!response.ok) {
+        throw new Error('Failed to toggle bookmark')
+        setIsBookmarked(isBookmarked) // Revert on error
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err)
+      setIsBookmarked(isBookmarked) // Revert on error
     }
-  } catch (err) {
-    console.error('Error updating like status:', err)
-    // Revert optimistic update on error
-    setLikeStatus(likeStatus)
   }
-}
+
+  const handleLikeDislike = async (type: 'like' | 'dislike') => {
+    try {
+      const token = localStorage.getItem('jwt')
+      if (!token || !post) return
+  
+      // Optimistically update UI first
+      const newLikeStatus = likeStatus === type ? null : type
+      setLikeStatus(newLikeStatus)
+  
+      const response = await fetch(`${API_URL}/posts/${post._id}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type })
+      })
+  
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Server response:', errorText)
+        throw new Error('Failed to update like status')
+      }
+  
+      // Get updated likes count
+      const likesResponse = await fetch(`${API_URL}/posts/${post._id}/likes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      })
+  
+      if (!likesResponse.ok) {
+        throw new Error('Failed to fetch updated likes count')
+      }
+  
+      const { data } = await likesResponse.json()
+      
+      // Update states with the actual data from server
+      setLikesCount(data.likesCount)
+      setDislikesCount(data.dislikesCount)
+      
+      // Update post state with new data
+      if (post) {
+        setPost({
+          ...post,
+          likes: data.likes,
+          likesCount: data.likesCount,
+          dislikesCount: data.dislikesCount
+        })
+      }
+    } catch (err) {
+      console.error('Error updating like status:', err)
+      // Revert optimistic update on error
+      setLikeStatus(likeStatus)
+    }
+  }
 
 
 
@@ -149,6 +193,7 @@ const handleLikeDislike = async (type: 'like' | 'dislike') => {
         // Initialize like counts and status
         setLikesCount(postData.likesCount || 0)
         setDislikesCount(postData.dislikesCount || 0)
+        setBookmarkCount(postData.bookmarkCount || 0)  // Add this
         
         // Get user ID from token
         const tokenData = JSON.parse(atob(token.split('.')[1]))
@@ -157,6 +202,10 @@ const handleLikeDislike = async (type: 'like' | 'dislike') => {
         // Set initial like status
         const userLike = postData.likes?.find((like: Like) => like.user === tokenData.id)
         setLikeStatus(userLike?.type || null)
+
+        // Set initial bookmark status
+        const userBookmark = postData.bookmarks?.find((bookmark: Bookmark) => bookmark.user === tokenData.id)
+        setIsBookmarked(!!userBookmark)  // Add this
         
         setLoading(false)
       } catch (err) {
@@ -304,6 +353,16 @@ const handleLikeDislike = async (type: 'like' | 'dislike') => {
           >
             <ThumbsDown className="h-4 w-4" />
             <span>{dislikesCount}</span>
+          </Button>
+
+          <Button
+            variant={isBookmarked ? 'default' : 'outline'}
+            size="sm"
+            onClick={handleBookmark}
+            className="flex items-center gap-2 ml-auto"
+          >
+            <Bookmark className="h-4 w-4" fill={isBookmarked ? 'currentColor' : 'none'} />
+            <span>{bookmarkCount}</span>
           </Button>
         </div>
       </div>

@@ -216,3 +216,53 @@ exports.getLikes = async (req, res) => {
         });
     }
 };
+
+// Add after getLikes function
+
+// Get bookmarks for a post
+exports.getBookmarks = catchAsync(async (req, res) => {
+    const posts = await Post.find({
+        'bookmarks.user': req.user._id
+    }).populate('author', 'username');
+
+    res.status(200).json({
+        status: 'success',
+        bookmarks: posts
+    });
+});
+
+// Toggle bookmark on a post
+exports.toggleBookmark = catchAsync(async (req, res) => {
+    const post = await Post.findById(req.params.postId);
+    
+    if (!post) {
+        return next(new AppError('Post not found', 404));
+    }
+
+    // Check if user has already bookmarked
+    const existingBookmark = post.bookmarks.find(
+        bookmark => bookmark.user.toString() === req.user._id.toString()
+    );
+
+    if (existingBookmark) {
+        // Remove bookmark if it exists
+        post.bookmarks = post.bookmarks.filter(
+            bookmark => bookmark.user.toString() !== req.user._id.toString()
+        );
+    } else {
+        // Add new bookmark
+        post.bookmarks.push({
+            user: req.user._id
+        });
+    }
+
+    await post.save();
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            isBookmarked: !existingBookmark,
+            bookmarkCount: post.bookmarkCount
+        }
+    });
+});

@@ -12,8 +12,9 @@ router.get('/', postController.getPosts);
 router.post('/', protect, postController.uploadPostImage, postController.createPost);
 
 // Bookmark routes (place these BEFORE the :id routes)
-router.get('/bookmarks', protect, userController.getBookmarks);
-router.post('/:postId/bookmark', protect, userController.toggleBookmark);
+// Change these lines
+router.get('/bookmarks', protect, postController.getBookmarks);
+router.post('/:postId/bookmark', protect, postController.toggleBookmark);
 
 // Post routes with ID parameter
 router.get('/:id', protect, postController.getPost);
