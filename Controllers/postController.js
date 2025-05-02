@@ -117,7 +117,10 @@ exports.getPosts = catchAsync(async (req, res, next) => {
 });
 
 exports.getPost = catchAsync(async (req, res, next) => {
-    const post = await Post.findById(req.params.id).populate('author', 'username');
+    const post = await Post.findById(req.params.id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username');  // Add this line to populate comment usernames
+    
     if (!post) {
         return next(new AppError('Post not found', 404));
     }

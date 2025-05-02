@@ -40,13 +40,15 @@ interface Bookmark {
 
 // Update Post interface to include comments
 // Update the Comment interface to handle both structures
+// Update the Comment interface
 interface Comment {
   _id: string;
   text: string;
   user: {
     _id: string;
     username: string;
-  } | string; // Can be either an object or just the ID
+    id: string;
+  };
   createdAt: string;
 }
 
@@ -253,7 +255,11 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         if (!response.ok) throw new Error("Failed to load post")
 
         const data = await response.json()
-        const postData = data.post || data
+        const postData = data.data || data // Update to use data.data
+        // Reverse comments array to show newest first
+        if (postData.comments) {
+          postData.comments = postData.comments.reverse()
+        }
         setPost(postData)
 
         // Initialize like counts and status
@@ -454,33 +460,50 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
             {post?.comments?.length === 0 ? (
               <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
             ) : (
-              // Update the comment mapping logic
+              // Update the comment mapping section
               post?.comments?.map((comment) => {
                 const token = localStorage.getItem('jwt');
                 const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
-                // Handle both object and string user types
-                const commentUserId = typeof comment.user === 'string' ? comment.user : comment.user._id;
-                const isCommentAuthor = userId === commentUserId;
-                const username = typeof comment.user === 'string' ? 'User' : comment.user.username;
+                const isCommentAuthor = userId === comment.user._id;
 
                 return (
                   <div key={comment._id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <span className="font-semibold">{username}</span>
+                        <span className="font-semibold">{comment.user.username}</span>
                         <span className="text-sm text-muted-foreground ml-2">
                           {formatDate(comment.createdAt)}
                         </span>
                       </div>
                       {isCommentAuthor && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteComment(comment._id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Comment</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this comment? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteComment(comment._id)}
+                                className="bg-red-500 hover:bg-red-600"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                     <p className="text-sm">{comment.text}</p>
