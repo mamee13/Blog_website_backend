@@ -20,7 +20,10 @@ router.post('/:postId/bookmark', protect, postController.toggleBookmark);
 router.get('/:id', protect, postController.getPost);
 router.patch('/:id', protect, postController.uploadPostImage, postController.updatePost);
 router.delete('/:id', protect, postController.deletePost);
+
 router.post('/:id/comments', protect, postController.createComment);
+
+router.delete('/:postId/comments/:commentId', protect, postController.deleteComment);
 
 // Like/Dislike routes
 router.post('/:postId/like', protect, postController.toggleLike);

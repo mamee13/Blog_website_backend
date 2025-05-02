@@ -31,7 +31,7 @@ exports.uploadPostImage = upload.single('image');
 
 exports.createPost = catchAsync(async (req, res, next) => {
     const { title, content, tags, category } = req.body;
-    
+
     const postData = {
         title,
         content,
@@ -46,7 +46,7 @@ exports.createPost = catchAsync(async (req, res, next) => {
 
     const post = new Post(postData);
     await post.save();
-    
+
     res.status(201).json({
         status: 'success',
         data: {
@@ -58,7 +58,7 @@ exports.createPost = catchAsync(async (req, res, next) => {
 // New update post function
 exports.updatePost = catchAsync(async (req, res, next) => {
     const post = await Post.findById(req.params.id);
-    
+
     if (!post) {
         return next(new AppError('Post not found', 404));
     }
@@ -69,7 +69,7 @@ exports.updatePost = catchAsync(async (req, res, next) => {
     }
 
     const { title, content, tags, category } = req.body;
-    
+
     // Update image if new one is uploaded
     if (req.file) {
         post.image = `/images/posts/${req.file.filename}`;
@@ -79,7 +79,7 @@ exports.updatePost = catchAsync(async (req, res, next) => {
     post.content = content || post.content;
     post.tags = tags || post.tags;
     post.category = category || post.category;
-    
+
     await post.save();
 
     res.json({
@@ -129,9 +129,49 @@ exports.createComment = catchAsync(async (req, res, next) => {
     if (!post) {
         return next(new AppError('Post not found', 404));
     }
-    post.comments.push({ text: req.body.text, user: req.userId });
+    post.comments.push({ text: req.body.text, user: req.user._id });
     await post.save();
-    res.status(201).json(post);
+
+    const updatedPost = await Post.findById(post._id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username');
+
+    res.status(201).json(updatedPost);
+});
+
+// Delete a comment
+exports.deleteComment = catchAsync(async (req, res, next) => {
+    const post = await Post.findById(req.params.postId);
+
+    if (!post) {
+        return next(new AppError('Post not found', 404));
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+
+    if (!comment) {
+        return next(new AppError('Comment not found', 404));
+    }
+
+    // Check if user is comment author or admin
+    if (comment.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        return next(new AppError('You are not authorized to delete this comment', 403));
+    }
+
+    // Remove the comment
+    post.comments.pull({ _id: req.params.commentId });
+    await post.save();
+
+    // Fetch updated post with populated fields
+    const updatedPost = await Post.findById(post._id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username');
+
+    // Return the updated post instead of 204 status
+    res.status(200).json({
+        status: 'success',
+        data: updatedPost
+    });
 });
 
 // Remove this as it seems to be misplaced Express route handler
@@ -234,7 +274,7 @@ exports.getBookmarks = catchAsync(async (req, res) => {
 // Toggle bookmark on a post
 exports.toggleBookmark = catchAsync(async (req, res) => {
     const post = await Post.findById(req.params.postId);
-    
+
     if (!post) {
         return next(new AppError('Post not found', 404));
     }

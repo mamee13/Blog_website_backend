@@ -38,55 +38,91 @@ interface Bookmark {
   id: string
 }
 
-// Update Post interface
-interface Post {
-  _id: string
-  title: string
-  content: string
-  author: {
-    _id: string
-    username: string
-  }
-  createdAt: string
-  updatedAt: string
-  category: string
-  likes: Like[]
-  likesCount: number
-  dislikesCount: number
-  bookmarks: Bookmark[]
-  bookmarkCount: number
+// Update Post interface to include comments
+// Update the Comment interface to handle both structures
+interface Comment {
+  _id: string;
+  text: string;
+  user: {
+    _id: string;
+    username: string;
+  } | string; // Can be either an object or just the ID
+  createdAt: string;
 }
 
-// Add these imports
+interface Post {
+  _id: string;
+  title: string;
+  content: string;
+  author: {
+    _id: string;
+    username: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  category: string;
+  likes: Like[];
+  likesCount: number;
+  dislikesCount: number;
+  bookmarks: Bookmark[];
+  bookmarkCount: number;
+  comments: Comment[];  // Add this line
+}
 
-
+// Add new state for comments
 export default function PostPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Add after other state declarations
   const [isAuthor, setIsAuthor] = useState(false)
-  const [isBookmarked, setIsBookmarked] = useState(false)  // Add this line
-
+  const [isBookmarked, setIsBookmarked] = useState(false)
   const [likeStatus, setLikeStatus] = useState<'like' | 'dislike' | null>(null)
   const [likesCount, setLikesCount] = useState(0)
   const [dislikesCount, setDislikesCount] = useState(0)
-
-  // Add after handleLikeDislike function
-  // Add this state with other states
   const [bookmarkCount, setBookmarkCount] = useState(0)
-  
-  // Modify the handleBookmark function
+  // Add comment state
+  const [commentText, setCommentText] = useState("")
+
+  // Add handleComment function
+  const handleComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('jwt');
+      if (!token || !post) return;
+
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: commentText })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add comment');
+      }
+
+      const updatedPost = await response.json();
+      // Reverse the comments array to show newest first
+      updatedPost.comments = updatedPost.comments.reverse();
+      setPost(updatedPost);
+      setCommentText('');
+    } catch (err) {
+      console.error('Error adding comment:', err);
+    }
+  };
+
   const handleBookmark = async () => {
     try {
       const token = localStorage.getItem('jwt')
       if (!token || !post) return
-  
+
       setIsBookmarked(!isBookmarked)
       setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1)
-  
+
       const response = await fetch(`${API_URL}/posts/${post._id}/bookmark`, {
         method: 'POST',
         headers: {
@@ -94,7 +130,7 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
           'Content-Type': 'application/json'
         }
       })
-  
+
       if (!response.ok) {
         throw new Error('Failed to toggle bookmark')
         setIsBookmarked(isBookmarked) // Revert on error
@@ -109,11 +145,11 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
     try {
       const token = localStorage.getItem('jwt')
       if (!token || !post) return
-  
+
       // Optimistically update UI first
       const newLikeStatus = likeStatus === type ? null : type
       setLikeStatus(newLikeStatus)
-  
+
       const response = await fetch(`${API_URL}/posts/${post._id}/like`, {
         method: 'POST',
         headers: {
@@ -122,30 +158,30 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         },
         body: JSON.stringify({ type })
       })
-  
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Server response:', errorText)
         throw new Error('Failed to update like status')
       }
-  
+
       // Get updated likes count
       const likesResponse = await fetch(`${API_URL}/posts/${post._id}/likes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
       })
-  
+
       if (!likesResponse.ok) {
         throw new Error('Failed to fetch updated likes count')
       }
-  
+
       const { data } = await likesResponse.json()
-      
+
       // Update states with the actual data from server
       setLikesCount(data.likesCount)
       setDislikesCount(data.dislikesCount)
-      
+
       // Update post state with new data
       if (post) {
         setPost({
@@ -162,13 +198,43 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
     }
   }
 
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const token = localStorage.getItem('jwt');
+      if (!token || !post) return;
+
+      // Use post._id instead of resolvedParams.id
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete comment');
+      }
+
+      // Update the post state to remove the deleted comment
+      setPost(prevPost => {
+        if (!prevPost) return null;
+        return {
+          ...prevPost,
+          comments: prevPost.comments.filter(comment => comment._id !== commentId)
+        };
+      });
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+    }
+  };
 
 
   useEffect(() => {
     const fetchPost = async () => {
       try {
         const token = localStorage.getItem('jwt')
-        
+
         if (!token) {
           throw new Error("Please login to view this post")
         }
@@ -179,26 +245,26 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
             'Content-Type': 'application/json'
           }
         })
-        
+
         if (response.status === 401 || response.status === 403) {
           throw new Error("Please login again to view this post")
         }
-        
+
         if (!response.ok) throw new Error("Failed to load post")
-        
+
         const data = await response.json()
         const postData = data.post || data
         setPost(postData)
-        
+
         // Initialize like counts and status
         setLikesCount(postData.likesCount || 0)
         setDislikesCount(postData.dislikesCount || 0)
         setBookmarkCount(postData.bookmarkCount || 0)  // Add this
-        
+
         // Get user ID from token
         const tokenData = JSON.parse(atob(token.split('.')[1]))
         setIsAuthor(tokenData.id === postData.author._id)
-        
+
         // Set initial like status
         const userLike = postData.likes?.find((like: Like) => like.user === tokenData.id)
         setLikeStatus(userLike?.type || null)
@@ -206,13 +272,13 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         // Set initial bookmark status
         const userBookmark = postData.bookmarks?.find((bookmark: Bookmark) => bookmark.user === tokenData.id)
         setIsBookmarked(!!userBookmark)  // Add this
-        
+
         setLoading(false)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to load post"
         setError(errorMessage)
         setLoading(false)
-        
+
         if (errorMessage.includes("login")) {
           router.push('/auth/login')
         }
@@ -364,6 +430,65 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
             <Bookmark className="h-4 w-4" fill={isBookmarked ? 'currentColor' : 'none'} />
             <span>{bookmarkCount}</span>
           </Button>
+        </div>
+        {/* Add comments section */}
+        <div className="mt-8 border-t pt-6">
+          <h2 className="text-2xl font-bold mb-4">Comments</h2>
+
+          {/* Comment form */}
+          <form onSubmit={handleComment} className="mb-6">
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="w-full p-2 border rounded-md mb-2"
+              placeholder="Write a comment..."
+              rows={3}
+            />
+            <Button type="submit" disabled={!commentText.trim()}>
+              Add Comment
+            </Button>
+          </form>
+
+          {/* Comments list */}
+          <div className="space-y-4">
+            {post?.comments?.length === 0 ? (
+              <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
+            ) : (
+              // Update the comment mapping logic
+              post?.comments?.map((comment) => {
+                const token = localStorage.getItem('jwt');
+                const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
+                // Handle both object and string user types
+                const commentUserId = typeof comment.user === 'string' ? comment.user : comment.user._id;
+                const isCommentAuthor = userId === commentUserId;
+                const username = typeof comment.user === 'string' ? 'User' : comment.user.username;
+
+                return (
+                  <div key={comment._id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="font-semibold">{username}</span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          {formatDate(comment.createdAt)}
+                        </span>
+                      </div>
+                      {isCommentAuthor && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteComment(comment._id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm">{comment.text}</p>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>
