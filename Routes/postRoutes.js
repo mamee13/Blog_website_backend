@@ -1,6 +1,6 @@
 const express = require('express');
 const postController = require('../Controllers/postController');
-const { protect } = require('../Controllers/authcontroller');  // Updated casing
+const { protect } = require('../Controllers/authcontroller');
 const userController = require('../Controllers/userController');
 
 const router = express.Router();
@@ -8,22 +8,22 @@ const router = express.Router();
 // Public routes
 router.get('/', postController.getPosts);
 
-// Create new post route (add this)
+// Create new post route
 router.post('/', protect, postController.uploadPostImage, postController.createPost);
-// Bookmark routes (place these BEFORE the :id routes)
+
+// Place specific routes BEFORE parameter routes
+router.get('/my-posts', protect, postController.getMyPosts);
 router.get('/bookmarks', protect, postController.getBookmarks);
-router.post('/:postId/bookmark', protect, postController.toggleBookmark);
 
 // Post routes with ID parameter
 router.get('/:id', protect, postController.getPost);
 router.patch('/:id', protect, postController.uploadPostImage, postController.updatePost);
 router.delete('/:id', protect, postController.deletePost);
 
+// Post interaction routes
+router.post('/:postId/bookmark', protect, postController.toggleBookmark);
 router.post('/:id/comments', protect, postController.createComment);
-
 router.delete('/:postId/comments/:commentId', protect, postController.deleteComment);
-
-// Like/Dislike routes
 router.post('/:postId/like', protect, postController.toggleLike);
 router.get('/:postId/likes', postController.getLikes);
 

@@ -309,3 +309,28 @@ exports.toggleBookmark = catchAsync(async (req, res) => {
         }
     });
 });
+
+exports.getMyPosts = catchAsync(async (req, res, next) => {
+    const posts = await Post.find({ author: req.user._id })
+        .populate('author', 'username')
+        .select('title content createdAt likes comments bookmarks slug')
+        .sort('-createdAt')
+        .lean();
+
+    const formattedPosts = posts.map(post => ({
+        ...post,
+        likesCount: post.likes.filter(like => like.type === 'like').length,
+        dislikesCount: post.likes.filter(like => like.type === 'dislike').length,
+        commentsCount: post.comments.length,
+        bookmarksCount: post.bookmarks.length,
+        createdAt: new Date(post.createdAt).toLocaleDateString()
+    }));
+
+    res.status(200).json({
+        status: 'success',
+        results: posts.length,
+        data: {
+            posts: formattedPosts
+        }
+    });
+});

@@ -47,7 +47,14 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold">Featured Posts</h2>
+          <Button variant="ghost" asChild>
+            <Link href="/posts" className="flex items-center gap-2">
+              View all <ArrowRight size={16} />
+            </Link>
+          </Button>
+        </div>
       <FeaturedPosts />
       
       <section className="py-12">

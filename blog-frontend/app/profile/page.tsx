@@ -13,6 +13,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_URL } from "@/lib/utils"
+import { ThumbsUp, ThumbsDown, MessageSquare, Bookmark, Calendar } from "lucide-react"
+
+// Add this function before the interfaces
+const stripHtmlTags = (html: string) => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
 
 interface User {
   _id: string
@@ -23,9 +31,14 @@ interface User {
 interface Post {
   _id: string
   title: string
+  content: string
   summary: string
   createdAt: string
   slug: string
+  likesCount: number
+  dislikesCount: number
+  commentsCount: number
+  bookmarksCount: number
 }
 
 export default function ProfilePage() {
@@ -52,16 +65,27 @@ export default function ProfilePage() {
 
     const fetchUserData = async () => {
       try {
-        const response = await fetch(`${API_URL}/users/profile`, {
+        // Fetch user profile
+        const userResponse = await fetch(`${API_URL}/users/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.message || "Failed to load profile data")
-        setUser(data.data.user)
-        setUsername(data.data.user.username) // <-- changed from setName
-        setEmail(data.data.user.email)
+        const userData = await userResponse.json()
+        if (!userResponse.ok) throw new Error(userData.message || "Failed to load profile data")
+        
+        // Fetch user posts
+        const postsResponse = await fetch(`${API_URL}/posts/my-posts`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        const postsData = await postsResponse.json()
+        
+        setUser(userData.data.user)
+        setUsername(userData.data.user.username)
+        setEmail(userData.data.user.email)
+        setPosts(postsData.data.posts || [])
         setLoading(false)
       } catch (err) {
         setError("Failed to load profile data")
@@ -115,79 +139,32 @@ export default function ProfilePage() {
 
     setUpdateLoading(true)
 
-    // try {
-    //   // In a real app, you would call your API
-    //   // const response = await fetch(`${API_URL}/users/updateMyPassword`, {
-    //   //   method: "PATCH",
-    //   //   headers: {
-    //   //     "Content-Type": "application/json",
-    //   //     "Authorization": `Bearer ${localStorage.getItem("jwt")}`
-    //   //   },
-    //   //   body: JSON.stringify({
-    //   //     passwordCurrent: currentPassword,
-    //   //     password: newPassword,
-    //   //     passwordConfirm
-    //   //   }),
-    //   // });
-    //   //
-    //   // const data = await response.json();
-    //   //
-    //   // if (!response.ok) {
-    //   //   throw new Error(data.message || "Failed to update password");
-    //   // }
-
-    //   // For demo purposes, we'll just simulate success
-    //   setTimeout(() => {
-    //     setUpdateSuccess("Profile updated successfully")
-    //     setUpdateLoading(false)
-    //   }, 1000)
-    // } catch (err) {
-    //   setUpdateError(err instanceof Error ? err.message : "An error occurred while updating profile")
-    //   setUpdateLoading(false)
-    // }
-  // }
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setUpdateSuccess("")
-    setUpdateError("")
-
-    if (newPassword !== passwordConfirm) {
-      setUpdateError("New passwords do not match")
-      return
-    }
-
-    setUpdateLoading(true)
-
     try {
-      // In a real app, you would call your API
-      // const response = await fetch(`${API_URL}/users/updateMyPassword`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     "Authorization": `Bearer ${localStorage.getItem("jwt")}`
-      //   },
-      //   body: JSON.stringify({
-      //     passwordCurrent: currentPassword,
-      //     password: newPassword,
-      //     passwordConfirm
-      //   }),
-      // });
-      //
-      // const data = await response.json();
-      //
-      // if (!response.ok) {
-      //   throw new Error(data.message || "Failed to update password");
-      // }
+      const token = localStorage.getItem("jwt")
+      const response = await fetch(`${API_URL}/users/update-password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          passwordCurrent: currentPassword,
+          password: newPassword,
+          passwordConfirm
+        }),
+      })
 
-      // For demo purposes, we'll just simulate success
-      setTimeout(() => {
-        setUpdateSuccess("Password updated successfully")
-        setCurrentPassword("")
-        setNewPassword("")
-        setPasswordConfirm("")
-        setUpdateLoading(false)
-      }, 1000)
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update password")
+      }
+
+      setUpdateSuccess("Password updated successfully")
+      setCurrentPassword("")
+      setNewPassword("")
+      setPasswordConfirm("")
+      setUpdateLoading(false)
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : "An error occurred while updating password")
       setUpdateLoading(false)
@@ -360,14 +337,42 @@ export default function ProfilePage() {
                     {posts.map((post) => (
                       <div key={post._id} className="border rounded-lg p-4">
                         <h3 className="font-medium mb-2">{post.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-4">{post.summary}</p>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" asChild>
-                            <Link href={`/posts/${post.slug}`}>View</Link>
-                          </Button>
-                          <Button size="sm" variant="outline" asChild>
-                            <Link href={`/posts/edit/${post.slug}`}>Edit</Link>
-                          </Button>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {stripHtmlTags(post.content).substring(0, 150)}...
+                        </p>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" asChild>
+                              <Link href={`/posts/${post._id}`}>View</Link>
+                            </Button>
+                            <Button size="sm" variant="outline" asChild>
+                              <Link href={`/posts/edit/${post._id}`}>Edit</Link>
+                            </Button>
+                          </div>
+                      
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <ThumbsUp className="w-4 h-4" />
+                              {post.likesCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <ThumbsDown className="w-4 h-4" />
+                              {post.dislikesCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MessageSquare className="w-4 h-4" />
+                              {post.commentsCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Bookmark className="w-4 h-4" />
+                              {post.bookmarksCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(post.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -386,5 +391,4 @@ export default function ProfilePage() {
       </div>
     </div>
   )
-}
-}
+} // Remove the extra closing brace here - there should only be one closing brace for the ProfilePage component
