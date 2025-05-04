@@ -5,7 +5,8 @@ import { use } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { API_URL } from "@/lib/utils"
-import { Editor } from "@/components/Editor"
+// Update this line
+import { Editor } from "@/components/editor"
 
 export default function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()

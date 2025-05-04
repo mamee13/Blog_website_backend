@@ -4,6 +4,12 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { formatDate, API_URL } from "@/lib/utils"
+import DOMPurify from 'isomorphic-dompurify'
+
+function stripHtml(html: string) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return doc.body.textContent || ''
+}
 
 interface Post {
   _id: string
@@ -52,13 +58,15 @@ export default function RecentPosts() {
           <CardHeader>
             <CardTitle className="text-xl">
               <Link href={`/posts/${post._id}`} className="hover:text-primary">
-                {post.title}
+                <div dangerouslySetInnerHTML={{ 
+                  __html: DOMPurify.sanitize(post.title) 
+                }} />
               </Link>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              {post.content.substring(0, 120)}...
+              {stripHtml(post.content).substring(0, 120)}...
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>By {post.author?.username || 'Unknown Author'}</span>

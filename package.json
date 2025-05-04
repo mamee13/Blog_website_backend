@@ -16,6 +16,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "googleapis": "^148.0.0",
+    "isomorphic-dompurify": "^2.24.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.488.0",
     "mongoose": "^8.9.2",

@@ -4,22 +4,20 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert" // Add Alert import
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_URL } from "@/lib/utils"
+// Update this line
+import { Editor } from "@/components/editor"
 
 export default function CreatePost() {
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    title: "",
-    content: "",
-    tags: "",
-    category: "",
-  })
-  const [image, setImage] = useState<File | null>(null)
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [tags, setTags] = useState("")
+  const [category, setCategory] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("") // Add error state
+  const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,10 +37,10 @@ export default function CreatePost() {
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          title: formData.title,
-          content: formData.content,
-          tags: formData.tags,
-          category: formData.category
+          title,
+          content,
+          tags,
+          category
         }),
       })
 
@@ -75,67 +73,46 @@ export default function CreatePost() {
             )}
             
             <div className="space-y-4">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium mb-1">
-                  Title
-                </label>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Title</label>
                 <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full"
                   required
                 />
               </div>
 
-              <div>
-                <label htmlFor="content" className="block text-sm font-medium mb-1">
-                  Content
-                </label>
-                <Textarea
-                  id="content"
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  required
-                  rows={8}
-                />
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Content</label>
+                <Editor value={content} onChange={setContent} />
               </div>
 
-              <div>
-                <label htmlFor="tags" className="block text-sm font-medium mb-1">
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
                   Tags (comma-separated)
                 </label>
                 <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  className="w-full"
                 />
               </div>
 
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium mb-1">
-                  Category
-                </label>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Category</label>
                 <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="image" className="block text-sm font-medium mb-1">
-                  Image
-                </label>
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImage(e.target.files?.[0] || null)}
+                  type="text"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <CardFooter className="flex justify-end space-x-4 px-0 mt-6">
+            <div className="flex gap-2 justify-end mt-6">
               <Button
                 type="button"
                 variant="outline"
@@ -147,7 +124,7 @@ export default function CreatePost() {
               <Button type="submit" disabled={loading}>
                 {loading ? "Creating..." : "Create Post"}
               </Button>
-            </CardFooter>
+            </div>
           </form>
         </CardContent>
       </Card>
