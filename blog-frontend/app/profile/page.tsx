@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { API_URL } from "@/lib/utils"
-import { ThumbsUp, ThumbsDown, MessageSquare, Bookmark, Calendar } from "lucide-react"
+import { ThumbsUp, ThumbsDown, MessageSquare, Bookmark, Calendar, Eye, EyeOff } from "lucide-react"
 
 // Add this function before the interfaces
 const stripHtmlTags = (html: string) => {
@@ -41,20 +41,57 @@ interface Post {
   bookmarksCount: number
 }
 
+// Add a simple modal component
+function ConfirmationModal({ isOpen, onClose, onConfirm, message }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, message: string }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+      <div className="bg-gray-800 p-4 rounded shadow-lg max-w-sm w-full"> {/* Changed to bg-gray-800 for dark mode */}
+        <div className="flex flex-col items-start">
+          <h2 className="text-lg font-semibold mb-2 text-white">Confirmation</h2> {/* Changed text color to white */}
+          <p className="text-sm text-gray-300 mb-4">{message}</p> {/* Changed text color to gray-300 */}
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="destructive" onClick={onConfirm}>Confirm</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Add these state variables after the other useState declarations
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const [username, setUsername] = useState("") // <-- changed from name/setName
-  const [email, setEmail] = useState("")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [passwordConfirm, setPasswordConfirm] = useState("")
-  const [updateSuccess, setUpdateSuccess] = useState("")
-  const [updateError, setUpdateError] = useState("")
-  const [updateLoading, setUpdateLoading] = useState(false)
-  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [updateSuccess, setUpdateSuccess] = useState("");
+  const [updateError, setUpdateError] = useState("");
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (updateSuccess || updateError) {
+      const timer = setTimeout(() => {
+        setUpdateSuccess('');
+        setUpdateError('');
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [updateSuccess, updateError]);
 
   useEffect(() => {
     const token = localStorage.getItem("jwt")
@@ -97,126 +134,104 @@ export default function ProfilePage() {
   }, [router])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setUpdateSuccess("")
-    setUpdateError("")
-    setUpdateLoading(true)
+    e.preventDefault();
+    setModalMessage("Are you sure you want to update your profile?");
+    setConfirmAction(() => async () => {
+      setIsModalOpen(false);
+      setUpdateSuccess("");
+      setUpdateError("");
+      setUpdateLoading(true);
 
-    try {
-      const token = localStorage.getItem("jwt")
-      const response = await fetch(`${API_URL}/users/profile`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ username, email }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to update profile")
+      try {
+        const token = localStorage.getItem("jwt");
+        const response = await fetch(`${API_URL}/users/profile`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ username, email }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to update profile");
+        }
+        setUpdateSuccess("Profile updated successfully");
+        setUser(data.data.user);
+        setUsername(data.data.user.username);
+        setEmail(data.data.user.email);
+        setUpdateLoading(false);
+      } catch (err) {
+        setUpdateError(err instanceof Error ? err.message : "An error occurred while updating profile");
+        setUpdateLoading(false);
       }
-      setUpdateSuccess("Profile updated successfully")
-      setUser(data.data.user)
-      setUsername(data.data.user.username)
-      setEmail(data.data.user.email)
-      setUpdateLoading(false)
-    } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : "An error occurred while updating profile")
-      setUpdateLoading(false)
-    }
-  }
+    });
+    setIsModalOpen(true);
+  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setUpdateSuccess("")
-    setUpdateError("")
-
+    e.preventDefault();
     if (newPassword !== passwordConfirm) {
-      setUpdateError("New passwords do not match")
-      return
+      setUpdateError("New passwords do not match");
+      return;
     }
+    setModalMessage("Are you sure you want to update your password?");
+    setConfirmAction(() => async () => {
+      setIsModalOpen(false);
+      setUpdateSuccess("");
+      setUpdateError("");
+      setUpdateLoading(true);
 
-    setUpdateLoading(true)
+      try {
+        const token = localStorage.getItem("jwt");
+        const response = await fetch(`${API_URL}/users/update-password`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            passwordCurrent: currentPassword,
+            password: newPassword,
+            passwordConfirm
+          }),
+        });
 
-    try {
-      const token = localStorage.getItem("jwt")
-      const response = await fetch(`${API_URL}/users/update-password`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          passwordCurrent: currentPassword,
-          password: newPassword,
-          passwordConfirm
-        }),
-      })
+        const data = await response.json();
 
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to update password")
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to update password");
+        }
+
+        setUpdateSuccess("Password updated successfully");
+        setCurrentPassword("");
+        setNewPassword("");
+        setPasswordConfirm("");
+        setUpdateLoading(false);
+      } catch (err) {
+        setUpdateError(err instanceof Error ? err.message : "An error occurred while updating password");
+        setUpdateLoading(false);
       }
-
-      setUpdateSuccess("Password updated successfully")
-      setCurrentPassword("")
-      setNewPassword("")
-      setPasswordConfirm("")
-      setUpdateLoading(false)
-    } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : "An error occurred while updating password")
-      setUpdateLoading(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Loading profile...</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-4 bg-muted rounded w-1/2"></div>
-                <div className="h-4 bg-muted rounded w-5/6"></div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => router.push("/auth/login")}>Go to Login</Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+    });
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <ConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={confirmAction}
+        message={modalMessage}
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Your Profile</h1>
 
-        <Tabs defaultValue="profile">
+        <Tabs defaultValue="posts">
           <TabsList className="mb-6">
+            <TabsTrigger value="posts">Your Posts</TabsTrigger>
             <TabsTrigger value="profile">Profile Information</TabsTrigger>
             <TabsTrigger value="password">Change Password</TabsTrigger>
-            <TabsTrigger value="posts">Your Posts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -245,12 +260,12 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Label>Email</Label>
+                    <p className="p-2 rounded-md bg-gray-100 dark:bg-gray-800">{email}</p>
                   </div>
 
                   <Button type="submit" disabled={updateLoading}>
-                    {updateLoading ? "Updating..." : "Update Profile"}
+                    {updateLoading ? "Updating..." : "Update Username"}
                   </Button>
                 </form>
               </CardContent>
@@ -279,35 +294,68 @@ export default function ProfilePage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-8 w-8 px-0"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-8 w-8 px-0"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="passwordConfirm">Confirm New Password</Label>
-                    <Input
-                      id="passwordConfirm"
-                      type="password"
-                      value={passwordConfirm}
-                      onChange={(e) => setPasswordConfirm(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="passwordConfirm"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordConfirm}
+                        onChange={(e) => setPasswordConfirm(e.target.value)}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-8 w-8 px-0"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
 
                   <Button type="submit" disabled={updateLoading}>

@@ -10,5 +10,6 @@ router.post('/verify-email', authController.verifyEmail);
 // Profile routes (protected)
 router.get('/profile', authController.protect, authController.getProfile);
 router.patch('/profile', authController.protect, authController.updateProfile);
+router.patch('/update-password', authController.protect, authController.updatePassword); // Add this line
 
 module.exports = router;

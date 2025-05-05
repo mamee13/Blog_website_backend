@@ -176,27 +176,90 @@ exports.getProfile = catchAsync(async (req, res, next) => {
 
 // Update current user's profile
 exports.updateProfile = catchAsync(async (req, res, next) => {
-    // Only allow updating certain fields
-    const allowedFields = ['username', 'email'];
-    const updates = {};
-    allowedFields.forEach(field => {
-        if (req.body[field]) updates[field] = req.body[field];
-    });
+    // Only allow updating the username
+    const { username } = req.body;
 
-    const user = await User.findByIdAndUpdate(req.user.id, updates, {
-        new: true,
-        runValidators: true,
-        select: '-password -verificationCode -verificationCodeExpires'
-    });
+    // Get the current user
+    const user = await User.findById(req.user.id);
 
     if (!user) {
         return next(new AppError('User not found', 404));
     }
 
+    // Check if the username is the same as the current one
+    if (username && username === user.username) {
+        return next(new AppError('Please use a different username', 400));
+    }
+
+    // Proceed with the update if the username is different
+    if (username) {
+        user.username = username;
+        await user.save();
+    }
+
     res.status(200).json({
         status: 'success',
+        message: 'Username updated successfully',
         data: {
             user
         }
     });
 });
+
+// Update current user's password
+exports.updatePassword = catchAsync(async (req, res, next) => {
+    // 1) Get user from collection
+    const { passwordCurrent, password, passwordConfirm } = req.body;
+    console.log('DEBUG: Updating password for user ID:', req.user.id);
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!user) {
+        return next(new AppError('User not found.', 404));
+    }
+    console.log('DEBUG: Hashed password from DB:', user.password);
+
+    // 2) Check if POSTed current password is correct
+    console.log('DEBUG: Current password from request:', passwordCurrent); // Use passwordCurrent
+
+    // Add explicit check for missing current password
+    if (!passwordCurrent) { // Check passwordCurrent
+         return next(new AppError('Please provide your current password', 400));
+    }
+
+    const isMatch = await bcrypt.compare(passwordCurrent, password); // Compare passwordCurrent
+    console.log('DEBUG: Password comparison result (isMatch):', isMatch);
+
+    if (!isMatch) {
+        return next(new AppError('Your current password is wrong', 401));
+    }
+
+    // 3) Check if new password and confirmation match
+    // Add checks for missing new password fields
+    if (!password || !passwordConfirm) { // Check password and passwordConfirm
+         return next(new AppError('Please provide new password and confirmation', 400));
+    }
+    if (password !== passwordConfirm) { // Compare password and passwordConfirm
+        return next(new AppError('New password and confirmation do not match', 400));
+    }
+
+    // 4) If so, update password
+    user.password = await bcrypt.hash(password, 12); // Hash the new password (key is 'password')
+    await user.save();
+
+    // 5) Log user in, send JWT
+    const token = signToken(user._id);
+
+    // Restore cookie setting similar to login
+    res.status(200)
+        .cookie('jwt', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        })
+        .json({
+            status: 'success',
+            token,
+            message: 'Password updated successfully'
+        });
+    });
