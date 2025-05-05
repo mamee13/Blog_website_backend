@@ -27,4 +27,10 @@ router.delete('/:postId/comments/:commentId', protect, postController.deleteComm
 router.post('/:postId/like', protect, postController.toggleLike);
 router.get('/:postId/likes', postController.getLikes);
 
+// Comment routes
+router.patch('/:postId/comments/:commentId', protect, postController.updateComment);
+router.post('/:postId/comments/:commentId/replies', protect, postController.addReply);
+router.patch('/:postId/comments/:commentId/replies/:replyId', protect, postController.updateReply);
+router.delete('/:postId/comments/:commentId/replies/:replyId', protect, postController.deleteReply);
+
 module.exports = router;

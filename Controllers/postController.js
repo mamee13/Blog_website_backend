@@ -119,8 +119,19 @@ exports.getPosts = catchAsync(async (req, res, next) => {
 exports.getPost = catchAsync(async (req, res, next) => {
     const post = await Post.findById(req.params.id)
         .populate('author', 'username')
-        .populate('comments.user', 'username');  // Add this line to populate comment usernames
-    
+        .populate({
+            path: 'comments',
+            populate: [
+                {
+                    path: 'user',
+                    select: 'username'
+                },
+                {
+                    path: 'replies.user',
+                    select: 'username'
+                }
+            ]
+        });
     if (!post) {
         return next(new AppError('Post not found', 404));
     }
@@ -333,4 +344,130 @@ exports.getMyPosts = catchAsync(async (req, res, next) => {
             posts: formattedPosts
         }
     });
+});
+
+// Update a comment
+exports.updateComment = catchAsync(async (req, res, next) => {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+        return next(new AppError('Post not found', 404));
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+        return next(new AppError('Comment not found', 404));
+    }
+
+    // Check if user is comment author
+    if (comment.user.toString() !== req.user._id.toString()) {
+        return next(new AppError('You can only edit your own comments', 403));
+    }
+
+    comment.text = req.body.text;
+    comment.updatedAt = Date.now();
+    await post.save();
+
+    const updatedPost = await Post.findById(post._id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username')
+        .populate('comments.replies.user', 'username');
+
+    res.status(200).json(updatedPost);
+});
+
+// Add a reply to a comment
+exports.addReply = catchAsync(async (req, res, next) => {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+        return next(new AppError('Post not found', 404));
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+        return next(new AppError('Comment not found', 404));
+    }
+
+    const reply = {
+        text: req.body.text,
+        user: req.user._id,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
+
+    comment.replies.push(reply);
+    await post.save();
+
+    const updatedPost = await Post.findById(post._id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username')
+        .populate('comments.replies.user', 'username');
+
+    res.status(201).json(updatedPost);
+});
+
+// Update a reply
+exports.updateReply = catchAsync(async (req, res, next) => {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+        return next(new AppError('Post not found', 404));
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+        return next(new AppError('Comment not found', 404));
+    }
+
+    const reply = comment.replies.id(req.params.replyId);
+    if (!reply) {
+        return next(new AppError('Reply not found', 404));
+    }
+
+    // Check if user is reply author
+    if (reply.user.toString() !== req.user._id.toString()) {
+        return next(new AppError('You can only edit your own replies', 403));
+    }
+
+    reply.text = req.body.text;
+    reply.updatedAt = Date.now();
+    await post.save();
+
+    const updatedPost = await Post.findById(post._id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username')
+        .populate('comments.replies.user', 'username');
+
+    res.status(200).json(updatedPost);
+});
+
+// Delete a reply
+exports.deleteReply = catchAsync(async (req, res, next) => {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+        return next(new AppError('Post not found', 404));
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+        return next(new AppError('Comment not found', 404));
+    }
+
+    const reply = comment.replies.id(req.params.replyId);
+    if (!reply) {
+        return next(new AppError('Reply not found', 404));
+    }
+
+    // Check if user is reply author or admin
+    if (reply.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        return next(new AppError('You can only delete your own replies', 403));
+    }
+
+    comment.replies.pull({ _id: req.params.replyId });
+    await post.save();
+
+    const updatedPost = await Post.findById(post._id)
+        .populate('author', 'username')
+        .populate('comments.user', 'username')
+        .populate('comments.replies.user', 'username');
+
+    res.status(200).json(updatedPost);
 });

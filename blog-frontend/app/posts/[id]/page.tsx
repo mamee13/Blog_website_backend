@@ -1,224 +1,488 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { use } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { formatDate, API_URL } from "@/lib/utils"
-import { Edit, Trash2, ArrowLeft } from "lucide-react"
-import { ThumbsUp, ThumbsDown } from "lucide-react"
-import { Bookmark } from "lucide-react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { useState, useEffect, useCallback } from "react"; // Added useCallback
+import { use } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link"; // Added Link import
+import { API_URL, formatDate } from "@/lib/utils"; // Ensure formatDate is imported
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button"; // Added Button import
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // Added AlertDialog imports
+import { ArrowLeft, Edit, Trash2, ThumbsUp, ThumbsDown, Bookmark as BookmarkIcon } from "lucide-react"; // Added necessary icons
 
+// --- Child Component Imports ---
+// Assuming these components exist and are correctly implemented
+import PostHeader from "@/components/post/PostHeader";
+import PostActions from "@/components/post/PostActions";
+import CommentSection from "@/components/post/CommentSection";
 
-// Add Like interface
-interface Like {
-  user: string
-  type: 'like' | 'dislike'
+// --- Interfaces (Ensure these match your API response structure) ---
+interface User {
+  _id: string;
+  username: string;
 }
 
-// Add Bookmark interface after Like interface
-interface Bookmark {
-  user: string
-  createdAt: string
-  _id: string
-  id: string
+interface Reply {
+  _id: string;
+  text: string;
+  user: User;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Update Post interface to include comments
-// Update the Comment interface to handle both structures
-// Update the Comment interface
 interface Comment {
   _id: string;
   text: string;
-  user: {
-    _id: string;
-    username: string;
-    id: string;
-  };
+  user: User;
   createdAt: string;
+  updatedAt: string;
+  replies: Reply[];
+}
+
+interface Like {
+  user: string; // User ID
+  type: 'like' | 'dislike';
+}
+
+interface Bookmark {
+  user: string; // User ID
 }
 
 interface Post {
   _id: string;
   title: string;
   content: string;
-  author: {
-    _id: string;
-    username: string;
-  };
+  author: User;
   createdAt: string;
   updatedAt: string;
-  category: string;
-  likes: Like[];
-  likesCount: number;
-  dislikesCount: number;
-  bookmarks: Bookmark[];
-  bookmarkCount: number;
-  comments: Comment[];  // Add this line
+  comments: Comment[];
+  likes: Like[]; // Array of like objects
+  bookmarks: Bookmark[]; // Array of bookmark objects
+  // Add counts if your API provides them directly, otherwise calculate them
+  likesCount?: number;
+  dislikesCount?: number;
+  bookmarkCount?: number;
 }
 
-// Add new state for comments
+// --- Main Page Component ---
 export default function PostPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter()
-  const resolvedParams = use(params)
-  const [post, setPost] = useState<Post | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isAuthor, setIsAuthor] = useState(false)
-  const [isBookmarked, setIsBookmarked] = useState(false)
-  const [likeStatus, setLikeStatus] = useState<'like' | 'dislike' | null>(null)
-  const [likesCount, setLikesCount] = useState(0)
-  const [dislikesCount, setDislikesCount] = useState(0)
-  const [bookmarkCount, setBookmarkCount] = useState(0)
-  // Add comment state
-  const [commentText, setCommentText] = useState("")
+  const router = useRouter();
+  // Resolve the promise param using `use`
+  // Remove the try/catch block around `use`
+  const resolvedParams = use(params);
+  // Error handling for unresolved/invalid params should rely on Suspense/Error Boundaries
+  // or checks after this point (e.g., if resolvedParams.id is missing).
 
-  // Add handleComment function
-  const handleComment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // --- State ---
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [post, setPost] = useState<Post | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAuthor, setIsAuthor] = useState(false);
+
+  // State derived from 'post' and 'currentUserId' - recalculate when they change
+  const [likeStatus, setLikeStatus] = useState<'like' | 'dislike' | null>(null);
+  const [likesCount, setLikesCount] = useState(0);
+  const [dislikesCount, setDislikesCount] = useState(0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+
+  // --- Utility Functions ---
+  const getToken = useCallback(() => {
+    if (typeof window === 'undefined') return null; // Guard for SSR/build time
+    const token = localStorage.getItem('jwt');
+    if (!token) {
+      console.warn("JWT token not found. Redirecting to login.");
+      router.push('/auth/login');
+      return null;
+    }
+    return token;
+  }, [router]);
+
+  const parseJwt = useCallback((token: string): { id: string } | null => {
     try {
-      const token = localStorage.getItem('jwt');
-      if (!token || !post) return;
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+      console.error("Failed to parse JWT:", e);
+      localStorage.removeItem('jwt'); // Clear invalid token
+      router.push('/auth/login'); // Redirect on parse failure
+      return null;
+    }
+  }, [router]);
 
-      const response = await fetch(`${API_URL}/posts/${post._id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: commentText })
+  // --- Effects ---
+
+  // Effect to get User ID from token
+  useEffect(() => {
+    if (typeof window === 'undefined') return; // Guard for SSR/build time
+    const token = localStorage.getItem('jwt'); // Don't use getToken here to avoid dependency loop/re-renders
+    if (token) {
+      const userData = parseJwt(token);
+      if (userData) {
+        setCurrentUserId(userData.id);
+      } else {
+         // parseJwt handles redirection if token is invalid
+         setError("Invalid session. Please login again.");
+         setLoading(false);
+      }
+    } else {
+      // No token found, might need to redirect depending on page requirements
+      // For viewing posts, we might allow viewing without login, but actions require it.
+      // Let the fetchPost effect handle redirection if login is strictly required.
+      console.log("No token found on initial load.");
+    }
+  }, [parseJwt]); // Depend on parseJwt
+
+
+  // Effect to Fetch Post Data
+  useEffect(() => {
+    // Ensure resolvedParams and its id are available
+    if (!resolvedParams?.id) {
+        // If params are definitively missing after resolving:
+        if (!loading && !post) { // Avoid setting error if still loading or post already loaded
+             setError("Post ID is missing.");
+             setLoading(false);
+        }
+        return; // Exit effect if no ID
+    }
+
+    const postId = resolvedParams.id;
+    let isMounted = true; // Flag to prevent state updates on unmounted component
+
+    const fetchPost = async () => {
+      setLoading(true);
+      setError(null); // Reset error on new fetch
+
+      const token = localStorage.getItem('jwt'); // Get token directly
+
+      // Decide if a token is strictly required to *view* the post
+      // If viewing is public, remove this block or adjust logic
+      if (!token) {
+        setError("Please login to view this post."); // Or allow viewing and disable actions
+        setLoading(false);
+        router.push('/auth/login'); // Redirect if login is mandatory
+        return;
+      }
+
+      // Attempt to get user ID again here if needed, ensure consistency
+      let userId = currentUserId;
+      if (!userId) {
+          const userData = parseJwt(token);
+          if (userData) {
+              userId = userData.id;
+              // No need to setCurrentUserId here if the other effect handles it,
+              // but ensure userId is available for checks below.
+          } else {
+              // Invalid token detected during fetch
+              setError("Invalid session. Please login again.");
+              setLoading(false);
+              return; // Exit fetch
+          }
+      }
+
+
+      try {
+        const response = await fetch(`${API_URL}/posts/${postId}`, {
+          headers: {
+            // Only include Authorization if token exists
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('jwt');
+            throw new Error("Session expired or invalid. Please login again.");
+          }
+          const errorBody = await response.text();
+          console.error("Fetch post error:", response.status, errorBody);
+          throw new Error(`Failed to load post (status: ${response.status})`);
+        }
+
+        const data = await response.json();
+        const postData: Post = data.data || data; // Adjust based on your API response wrapper
+
+        if (!postData || !postData._id) {
+          throw new Error("Received invalid post data format from API.");
+        }
+
+        if (isMounted) {
+          // Reverse comments before setting state
+          if (postData.comments) {
+            postData.comments = [...postData.comments].reverse();
+          }
+          setPost(postData);
+
+          // --- Update derived state based on fetched post and current user ---
+          const fetchedUserId = userId; // Use the userId obtained in this effect scope
+
+          // Check if the current user is the author
+          setIsAuthor(fetchedUserId === postData.author._id);
+
+          // Calculate counts (handle potential missing arrays/fields)
+          const likes = postData.likes || [];
+          const bookmarks = postData.bookmarks || [];
+          setLikesCount(likes.filter(l => l.type === 'like').length);
+          setDislikesCount(likes.filter(l => l.type === 'dislike').length);
+          setBookmarkCount(bookmarks.length);
+
+          // Set initial like status for the current user
+          const userLike = likes.find(like => like.user === fetchedUserId);
+          setLikeStatus(userLike?.type || null);
+
+          // Set initial bookmark status for the current user
+          const userBookmark = bookmarks.find(bookmark => bookmark.user === fetchedUserId);
+          setIsBookmarked(!!userBookmark);
+          // --- End derived state update ---
+        }
+
+      } catch (err) {
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+          console.error("Error fetching post:", err);
+          setError(errorMessage);
+          if (errorMessage.includes("login") || errorMessage.includes("Session")) {
+            router.push('/auth/login');
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchPost();
+
+    // Cleanup function to prevent state updates on unmount
+    return () => {
+      isMounted = false;
+    };
+    // Dependencies: Fetch when postId changes or when currentUserId is determined.
+    // REMOVED `loading` and `post` from dependencies to prevent infinite loop.
+  }, [resolvedParams?.id, currentUserId, parseJwt, router]); // Corrected dependencies
+
+
+  // --- API Interaction Handlers ---
+  // Wrap handlers in useCallback to stabilize their identity for prop drilling
+
+  const handleDeletePost = useCallback(async () => {
+    const token = getToken();
+    if (!token || !post) return;
+
+    // Consider adding a loading state specific to this action if needed
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add comment');
+        throw new Error('Failed to delete post');
       }
-
-      const updatedPost = await response.json();
-      // Reverse the comments array to show newest first
-      updatedPost.comments = updatedPost.comments.reverse();
-      setPost(updatedPost);
-      setCommentText('');
+      router.push("/posts"); // Navigate away
     } catch (err) {
-      console.error('Error adding comment:', err);
+      console.error("Error deleting post:", err);
+      setError(err instanceof Error ? err.message : "Failed to delete post."); // Set page error
     }
-  };
+  }, [post, getToken, router]);
 
-  const handleBookmark = async () => {
-    try {
-      const token = localStorage.getItem('jwt')
-      if (!token || !post) return
+  const handleLikeDislike = useCallback(async (type: 'like' | 'dislike') => {
+    const token = getToken();
+    if (!token || !post) return; // Add check for post
 
-      setIsBookmarked(!isBookmarked)
-      setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1)
+    // Optional: Optimistic Update (can make UI feel faster)
+    // Store previous state in case of error
+    const previousLikeStatus = likeStatus;
+    const previousLikesCount = likesCount;
+    const previousDislikesCount = dislikesCount;
 
-      const response = await fetch(`${API_URL}/posts/${post._id}/bookmark`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle bookmark')
-        setIsBookmarked(isBookmarked) // Revert on error
-      }
-    } catch (err) {
-      console.error('Error toggling bookmark:', err)
-      setIsBookmarked(isBookmarked) // Revert on error
+    // Immediately update UI based on the action
+    const newLikeStatus = previousLikeStatus === type ? null : type;
+    setLikeStatus(newLikeStatus);
+    if (newLikeStatus === 'like') {
+        setLikesCount(prev => previousLikeStatus === 'like' ? prev -1 : prev + 1);
+        if(previousLikeStatus === 'dislike') setDislikesCount(prev => prev - 1);
+    } else if (newLikeStatus === 'dislike') {
+        setDislikesCount(prev => previousLikeStatus === 'dislike' ? prev - 1 : prev + 1);
+         if(previousLikeStatus === 'like') setLikesCount(prev => prev - 1);
+    } else { // User cleared their vote
+        if(previousLikeStatus === 'like') setLikesCount(prev => prev - 1);
+        if(previousLikeStatus === 'dislike') setDislikesCount(prev => prev - 1);
     }
-  }
 
-  const handleLikeDislike = async (type: 'like' | 'dislike') => {
+
     try {
-      const token = localStorage.getItem('jwt')
-      if (!token || !post) return
-
-      // Optimistically update UI first
-      const newLikeStatus = likeStatus === type ? null : type
-      setLikeStatus(newLikeStatus)
-
       const response = await fetch(`${API_URL}/posts/${post._id}/like`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ type })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Server response:', errorText)
-        throw new Error('Failed to update like status')
-      }
-
-      // Get updated likes count
-      const likesResponse = await fetch(`${API_URL}/posts/${post._id}/likes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      })
-
-      if (!likesResponse.ok) {
-        throw new Error('Failed to fetch updated likes count')
-      }
-
-      const { data } = await likesResponse.json()
-
-      // Update states with the actual data from server
-      setLikesCount(data.likesCount)
-      setDislikesCount(data.dislikesCount)
-
-      // Update post state with new data
-      if (post) {
-        setPost({
-          ...post,
-          likes: data.likes,
-          likesCount: data.likesCount,
-          dislikesCount: data.dislikesCount
-        })
-      }
-    } catch (err) {
-      console.error('Error updating like status:', err)
-      // Revert optimistic update on error
-      setLikeStatus(likeStatus)
-    }
-  }
-
-  const handleDeleteComment = async (commentId: string) => {
-    try {
-      const token = localStorage.getItem('jwt');
-      if (!token || !post) return;
-
-      // Use post._id instead of resolvedParams.id
-      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        body: JSON.stringify({ type }) // Send the intended type ('like' or 'dislike')
       });
 
       if (!response.ok) {
+        // Revert optimistic update on failure
+        setLikeStatus(previousLikeStatus);
+        setLikesCount(previousLikesCount);
+        setDislikesCount(previousDislikesCount);
+        const errorData = await response.json().catch(() => ({ message: 'Failed to like/dislike post' }));
+        throw new Error(errorData.message || 'Failed to like/dislike post');
+      }
+
+      // API should ideally return the updated counts and potentially the user's status
+      const updatedData = await response.json();
+
+      // Update state with data from API response for consistency
+      // (Even if optimistic update was done, this ensures sync with backend)
+      if (updatedData && typeof updatedData.likesCount === 'number' && typeof updatedData.dislikesCount === 'number') {
+          setLikesCount(updatedData.likesCount);
+          setDislikesCount(updatedData.dislikesCount);
+          // Determine status based on response if possible, otherwise rely on optimistic update
+          // Example: if API returns the user's current vote:
+          // setLikeStatus(updatedData.currentUserVote || newLikeStatus);
+      }
+       // If API doesn't return counts/status, the optimistic update handles the UI change
+
+
+    } catch (err) {
+      console.error('Error liking/disliking post:', err);
+       // Ensure reversion if fetch itself failed
+       setLikeStatus(previousLikeStatus);
+       setLikesCount(previousLikesCount);
+       setDislikesCount(previousDislikesCount);
+      setError(err instanceof Error ? err.message : "Interaction failed.");
+    }
+    // Removed post from dependencies, rely on specific state setters
+  }, [post, getToken, setError, likeStatus, likesCount, dislikesCount]); // Added state vars needed for optimistic update/revert
+
+  const handleBookmark = useCallback(async () => {
+    const token = getToken();
+    if (!token || !post) return; // Add check for post
+
+    // Optional: Optimistic Update
+    const previousIsBookmarked = isBookmarked;
+    const previousBookmarkCount = bookmarkCount;
+    const newIsBookmarked = !previousIsBookmarked;
+
+    setIsBookmarked(newIsBookmarked); // Update UI immediately
+    setBookmarkCount(prev => newIsBookmarked ? prev + 1 : prev - 1);
+
+
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}/bookmark`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+         // Revert optimistic update on failure
+         setIsBookmarked(previousIsBookmarked);
+         setBookmarkCount(previousBookmarkCount);
+        const errorData = await response.json().catch(() => ({ message: 'Failed to bookmark post' }));
+        throw new Error(errorData.message || 'Failed to bookmark post');
+      }
+
+      // API should ideally return the updated count and status
+      const updatedData = await response.json();
+
+      // Update state with data from API response for consistency
+       if (updatedData && typeof updatedData.bookmarkCount === 'number') {
+           setBookmarkCount(updatedData.bookmarkCount);
+           // Example: if API returns the user's current bookmark status:
+           // setIsBookmarked(updatedData.isBookmarkedByCurrentUser ?? newIsBookmarked);
+       }
+       // If API doesn't return count/status, optimistic update handles UI change
+
+
+    } catch (err) {
+      console.error('Error bookmarking post:', err);
+      // Ensure reversion if fetch itself failed
+      setIsBookmarked(previousIsBookmarked);
+      setBookmarkCount(previousBookmarkCount);
+      setError(err instanceof Error ? err.message : "Interaction failed.");
+    }
+     // Removed post from dependencies, rely on specific state setters
+  }, [post, getToken, setError, isBookmarked, bookmarkCount]); // Added state vars needed for optimistic update/revert
+
+  // --- Comment/Reply Handlers ---
+  const handleComment = useCallback(async (text: string) => {
+    const token = getToken();
+    if (!token || !post || !text.trim()) return;
+
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text })
+      });
+
+      if (!response.ok) throw new Error('Failed to add comment');
+
+      const updatedPostData: Post = await response.json(); // Assume API returns updated post
+      if (updatedPostData.comments) {
+        updatedPostData.comments = [...updatedPostData.comments].reverse(); // Keep newest first
+      }
+      setPost(updatedPostData); // Update the entire post state
+
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      setError(err instanceof Error ? err.message : "Failed to add comment.");
+    }
+  }, [post, getToken, setError]); // Added setError
+
+  const handleEditComment = useCallback(async (commentId: string, text: string) => {
+    const token = getToken();
+    if (!token || !post || !text.trim()) return;
+
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}`, {
+        method: 'PATCH', // Or PUT
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text })
+      });
+
+      if (!response.ok) throw new Error('Failed to update comment');
+
+      const updatedPostData: Post = await response.json(); // Assume API returns updated post
+      if (updatedPostData.comments) {
+        updatedPostData.comments = [...updatedPostData.comments].reverse();
+      }
+      setPost(updatedPostData);
+
+    } catch (err) {
+      console.error('Error updating comment:', err);
+      setError(err instanceof Error ? err.message : "Failed to update comment.");
+    }
+  }, [post, getToken, setError]); // Added setError
+
+  const handleDeleteComment = useCallback(async (commentId: string) => {
+    const token = getToken();
+    if (!token || !post) return;
+
+    // Optional: Optimistic update (more complex state logic)
+    // setPost(prev => prev ? ({ ...prev, comments: prev.comments.filter(c => c._id !== commentId) }) : null);
+
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        // Revert optimistic update if used
         throw new Error('Failed to delete comment');
       }
 
-      // Update the post state to remove the deleted comment
+      // Update state after successful deletion (if not done optimistically)
       setPost(prevPost => {
         if (!prevPost) return null;
         return {
@@ -226,98 +490,182 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
           comments: prevPost.comments.filter(comment => comment._id !== commentId)
         };
       });
+
     } catch (err) {
       console.error('Error deleting comment:', err);
+      // Revert optimistic update if used
+      setError(err instanceof Error ? err.message : "Failed to delete comment.");
     }
-  };
+  }, [post, getToken, setError]); // Added setError
 
+  const handleReply = useCallback(async (commentId: string, text: string) => {
+    const token = getToken();
+    if (!token || !post || !text.trim()) return;
 
-  useEffect(() => {
-    const fetchPost = async () => {
-      try {
-        const token = localStorage.getItem('jwt')
-
-        if (!token) {
-          throw new Error("Please login to view this post")
-        }
-
-        const response = await fetch(`${API_URL}/posts/${resolvedParams.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token.trim()}`,
-            'Content-Type': 'application/json'
-          }
-        })
-
-        if (response.status === 401 || response.status === 403) {
-          throw new Error("Please login again to view this post")
-        }
-
-        if (!response.ok) throw new Error("Failed to load post")
-
-        const data = await response.json()
-        const postData = data.data || data // Update to use data.data
-        // Reverse comments array to show newest first
-        if (postData.comments) {
-          postData.comments = postData.comments.reverse()
-        }
-        setPost(postData)
-
-        // Initialize like counts and status
-        setLikesCount(postData.likesCount || 0)
-        setDislikesCount(postData.dislikesCount || 0)
-        setBookmarkCount(postData.bookmarkCount || 0)  // Add this
-
-        // Get user ID from token
-        const tokenData = JSON.parse(atob(token.split('.')[1]))
-        setIsAuthor(tokenData.id === postData.author._id)
-
-        // Set initial like status
-        const userLike = postData.likes?.find((like: Like) => like.user === tokenData.id)
-        setLikeStatus(userLike?.type || null)
-
-        // Set initial bookmark status
-        const userBookmark = postData.bookmarks?.find((bookmark: Bookmark) => bookmark.user === tokenData.id)
-        setIsBookmarked(!!userBookmark)  // Add this
-
-        setLoading(false)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to load post"
-        setError(errorMessage)
-        setLoading(false)
-
-        if (errorMessage.includes("login")) {
-          router.push('/auth/login')
-        }
-      }
-    }
-
-    if (resolvedParams.id) {
-      fetchPost()
-    }
-  }, [resolvedParams.id, router])
-
-  const handleDelete = async () => {
     try {
-      const response = await fetch(`${API_URL}/posts/${post?._id}`, {
-        method: 'DELETE',
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}/replies`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('jwt')}`
-        }
-      })
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text })
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete post')
+      if (!response.ok) throw new Error('Failed to add reply');
+
+      const updatedPostData: Post = await response.json(); // Assume API returns updated post
+      if (updatedPostData.comments) {
+        updatedPostData.comments = [...updatedPostData.comments].reverse();
       }
+      setPost(updatedPostData);
 
-      router.push("/posts")
     } catch (err) {
-      console.error("Error deleting post:", err)
+      console.error('Error adding reply:', err);
+      setError(err instanceof Error ? err.message : "Failed to add reply.");
     }
-  }
+  }, [post, getToken, setError]); // Added setError
+
+  const handleEditReply = useCallback(async (commentId: string, replyId: string, text: string) => {
+    const token = getToken();
+    if (!token || !post || !text.trim()) return;
+
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}/replies/${replyId}`, {
+        method: 'PATCH', // Or PUT
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text })
+      });
+
+      if (!response.ok) throw new Error('Failed to update reply');
+
+      const updatedPostData: Post = await response.json(); // Assume API returns updated post
+      if (updatedPostData.comments) {
+        updatedPostData.comments = [...updatedPostData.comments].reverse();
+      }
+      setPost(updatedPostData);
+
+    } catch (err) {
+      console.error('Error updating reply:', err);
+      setError(err instanceof Error ? err.message : "Failed to update reply.");
+    }
+  }, [post, getToken, setError]); // Added setError
+
+  const handleDeleteReply = useCallback(async (commentId: string, replyId: string) => {
+    const token = getToken();
+    if (!token || !post) return;
+
+    try {
+      const response = await fetch(`${API_URL}/posts/${post._id}/comments/${commentId}/replies/${replyId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to delete reply');
+
+      // Update state after successful deletion
+      setPost(prevPost => {
+        if (!prevPost) return null;
+        return {
+          ...prevPost,
+          comments: prevPost.comments.map(comment => {
+            if (comment._id === commentId) {
+              return {
+                ...comment,
+                replies: comment.replies.filter(reply => reply._id !== replyId)
+              };
+            }
+            return comment;
+          })
+        };
+      });
+
+    } catch (err) {
+      console.error('Error deleting reply:', err);
+      setError(err instanceof Error ? err.message : "Failed to delete reply.");
+    }
+  }, [post, getToken, setError]); // Added setError
+
+
+  // --- Render Logic ---
 
   if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
+    return <LoadingSkeleton />;
+  }
+
+  // Display error specific to post loading, or general errors set by handlers
+  if (error || !post) {
+    // Pass the current error state to the display component
+    return <ErrorDisplay error={error || "Post not found."} />;
+  }
+
+  // --- Main JSX ---
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto">
+
+        <PostHeader
+          title={post.title}
+          author={post.author}
+          createdAt={post.createdAt}
+          updatedAt={post.updatedAt}
+          isAuthor={isAuthor}
+          postId={post._id}
+          onDelete={handleDeletePost}
+          onBack={() => router.back()} // Use router.back()
+        />
+
+        {/* Post Content */}
+        <div
+          className="prose prose-lg dark:prose-invert max-w-none mb-8 break-words"
+          dangerouslySetInnerHTML={{ __html: post.content }} // Ensure content is sanitized server-side!
+        />
+
+        {/* Actions: Like/Dislike/Bookmark */}
+        <PostActions
+          postId={post._id} // Pass postId
+          likeStatus={likeStatus}
+          likesCount={likesCount}
+          dislikesCount={dislikesCount}
+          isBookmarked={isBookmarked}
+          bookmarkCount={bookmarkCount}
+          onLikeDislike={handleLikeDislike}
+          onBookmark={handleBookmark}
+          // Add disabled state based on whether user is logged in if needed
+          // disabled={!currentUserId}
+        />
+
+        {/* Comments Section */}
+        <CommentSection
+          postId={post._id} // Pass postId if needed by CommentSection internally
+          comments={post.comments || []} // Pass comments array, default to empty array
+          currentUserId={currentUserId} // Pass current user ID
+          // Pass all the handlers
+          onAddComment={handleComment}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
+          onAddReply={handleReply}
+          onEditReply={handleEditReply}
+          onDeleteReply={handleDeleteReply}
+          // Add disabled state based on whether user is logged in if needed
+          // disabled={!currentUserId}
+        />
+
+      </div>
+    </div>
+  );
+}
+
+// --- Helper Components ---
+
+function LoadingSkeleton() {
+  // ... (keep existing skeleton)
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto">
         <Skeleton className="h-8 w-32 mb-4" />
         <Skeleton className="h-12 w-3/4 mb-4" />
         <Skeleton className="h-4 w-48 mb-8" />
@@ -326,194 +674,31 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />
         </div>
-      </div>
-    )
-  }
-
-  if (error || !post) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Error</h1>
-        <p className="text-muted-foreground mb-6">{error || "Post not found"}</p>
-        <Button asChild>
-          <Link href="/posts">Back to Posts</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <Button variant="ghost" asChild className="mb-4">
-            <Link href="/posts">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Posts
-            </Link>
-          </Button>
-
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">{post?.title}</h1>
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mb-8">
-            <span>By {post?.author.username}</span>
-            <span>•</span>
-            <span>Published {formatDate(post?.createdAt || '')}</span>
-            {post?.updatedAt !== post?.createdAt && (
-              <>
-                <span>•</span>
-                <span>Updated {formatDate(post?.updatedAt || '')}</span>
-              </>
-            )}
-          </div>
-
-          {isAuthor && (
-            <div className="flex gap-2 mb-6">
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/posts/edit/${post?._id}`}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your post.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-        </div>
-
-        <div
-          className="prose prose-lg dark:prose-invert max-w-none mb-8"
-          dangerouslySetInnerHTML={{ __html: post?.content || '' }}
-        />
-
-        {/* Like/dislike buttons moved to bottom */}
-        <div className="flex items-center gap-4 mt-8 border-t pt-6">
-          <Button
-            variant={likeStatus === 'like' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleLikeDislike('like')}
-            className="flex items-center gap-2"
-          >
-            <ThumbsUp className="h-4 w-4" />
-            <span>{likesCount}</span>
-          </Button>
-
-          <Button
-            variant={likeStatus === 'dislike' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleLikeDislike('dislike')}
-            className="flex items-center gap-2"
-          >
-            <ThumbsDown className="h-4 w-4" />
-            <span>{dislikesCount}</span>
-          </Button>
-
-          <Button
-            variant={isBookmarked ? 'default' : 'outline'}
-            size="sm"
-            onClick={handleBookmark}
-            className="flex items-center gap-2 ml-auto"
-          >
-            <Bookmark className="h-4 w-4" fill={isBookmarked ? 'currentColor' : 'none'} />
-            <span>{bookmarkCount}</span>
-          </Button>
-        </div>
-        {/* Add comments section */}
-        <div className="mt-8 border-t pt-6">
-          <h2 className="text-2xl font-bold mb-4">Comments</h2>
-
-          {/* Comment form */}
-          <form onSubmit={handleComment} className="mb-6">
-            <textarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              className="w-full p-2 border rounded-md mb-2"
-              placeholder="Write a comment..."
-              rows={3}
-            />
-            <Button type="submit" disabled={!commentText.trim()}>
-              Add Comment
-            </Button>
-          </form>
-
-          {/* Comments list */}
-          <div className="space-y-4">
-            {post?.comments?.length === 0 ? (
-              <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
-            ) : (
-              // Update the comment mapping section
-              post?.comments?.map((comment) => {
-                const token = localStorage.getItem('jwt');
-                const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
-                const isCommentAuthor = userId === comment.user._id;
-
-                return (
-                  <div key={comment._id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <span className="font-semibold">{comment.user.username}</span>
-                        <span className="text-sm text-muted-foreground ml-2">
-                          {formatDate(comment.createdAt)}
-                        </span>
-                      </div>
-                      {isCommentAuthor && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Comment</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this comment? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => handleDeleteComment(comment._id)}
-                                className="bg-red-500 hover:bg-red-600"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                    <p className="text-sm">{comment.text}</p>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+        {/* Add skeleton for actions and comments */}
+        <Skeleton className="h-10 w-full mt-8 border-t pt-6" />
+        <Skeleton className="h-20 w-full mt-8 border-t pt-6" />
       </div>
     </div>
-  )
+  );
+}
+
+function ErrorDisplay({ error }: { error: string | null }) {
+  const router = useRouter(); // Need router here too for login button
+  // ... (keep existing error display, ensure Link and Button are imported)
+  return (
+    <div className="container mx-auto px-4 py-8 text-center">
+      <h1 className="text-2xl font-bold mb-4 text-destructive">Error</h1>
+      <p className="text-muted-foreground mb-6">{error || "An unexpected error occurred."}</p>
+      <Button variant="outline" onClick={() => router.back()} className="mr-4">
+         Go Back
+      </Button>
+      <Button variant="outline" asChild>
+        <Link href="/posts">Back to Posts</Link>
+      </Button>
+      {/* Optionally add a login button if the error is auth-related */}
+      {error && (error.includes("login") || error.includes("Session")) && (
+        <Button onClick={() => router.push('/auth/login')} className="ml-4">Login</Button>
+      )}
+    </div>
+  );
 }
