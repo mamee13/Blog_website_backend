@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_URL } from "@/lib/utils"
+import { UserPlus, Mail, Lock, User, KeyRound, ArrowRight, LogIn } from "lucide-react"
 
 export default function RegisterPage() {
   const [name, setName] = useState("")
@@ -96,114 +97,194 @@ export default function RegisterPage() {
 
   if (showVerification) {
     return (
-      <div className="container mx-auto px-4 py-12 flex justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl">Verify Your Email</CardTitle>
-            <CardDescription>Enter the verification code sent to your email</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleVerification} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="verificationCode">Verification Code</Label>
-                <Input
-                  id="verificationCode"
-                  type="text"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Verifying..." : "Verify Email"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto space-y-8">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary mb-2">
+                Verify Your Email
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                We've sent a verification code to your email
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-3xl -rotate-3 transform"></div>
+              <Card className="relative">
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    <KeyRound className="w-6 h-6 text-primary" />
+                    Email Verification
+                  </CardTitle>
+                  <CardDescription>Enter the code to complete your registration</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleVerification} className="space-y-4">
+                    {error && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="verificationCode" className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-primary" />
+                        Verification Code
+                      </Label>
+                      <Input
+                        id="verificationCode"
+                        type="text"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value)}
+                        required
+                        className="border-primary/20 focus:border-primary"
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-gradient-to-r from-primary to-primary hover:opacity-90 transition-opacity"
+                      disabled={loading}
+                    >
+                      {loading ? "Verifying..." : (
+                        <>
+                          <ArrowRight className="w-4 h-4 mr-2" />
+                          Verify Email
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-12 flex justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Create an Account</CardTitle>
-          <CardDescription>Enter your details to create a new account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="passwordConfirm">Confirm Password</Label>
-              <Input
-                id="passwordConfirm"
-                type="password"
-                value={passwordConfirm}
-                onChange={(e) => setPasswordConfirm(e.target.value)}
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating Account..." : "Register"}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-center text-sm">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="text-primary hover:underline">
-              Login
-            </Link>
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto space-y-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary mb-2">
+              Create Account
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Join us and start sharing your stories
+            </p>
           </div>
-        </CardFooter>
-      </Card>
+
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-3xl -rotate-3 transform"></div>
+            <Card className="relative">
+              <CardHeader>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <UserPlus className="w-6 h-6 text-primary" />
+                  Register
+                </CardTitle>
+                <CardDescription>Enter your details to create a new account</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-primary" />
+                      Name
+                    </Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="border-primary/20 focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-primary" />
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="border-primary/20 focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-primary" />
+                      Password
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="border-primary/20 focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="passwordConfirm" className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-primary" />
+                      Confirm Password
+                    </Label>
+                    <Input
+                      id="passwordConfirm"
+                      type="password"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      required
+                      className="border-primary/20 focus:border-primary"
+                    />
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-primary to-primary hover:opacity-90 transition-opacity"
+                    disabled={loading}
+                  >
+                    {loading ? "Creating Account..." : (
+                      <>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Register
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+              <CardFooter className="flex flex-col space-y-4">
+                <div className="text-center text-sm">
+                  Already have an account?{" "}
+                  <Link 
+                    href="/auth/login" 
+                    className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1 justify-center mt-2"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    Login here
+                  </Link>
+                </div>
+              </CardFooter>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -80,6 +80,7 @@ export default function ProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -119,10 +120,19 @@ export default function ProfilePage() {
         })
         const postsData = await postsResponse.json()
         
+        // Fetch bookmarked posts
+        const bookmarksResponse = await fetch(`${API_URL}/posts/bookmarked`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        const bookmarksData = await bookmarksResponse.json()
+        
         setUser(userData.data.user)
         setUsername(userData.data.user.username)
         setEmail(userData.data.user.email)
         setPosts(postsData.data.posts || [])
+        setBookmarkedPosts(bookmarksData.data.posts || [])
         setLoading(false)
       } catch (err) {
         setError("Failed to load profile data")
@@ -230,10 +240,66 @@ export default function ProfilePage() {
         <Tabs defaultValue="posts">
           <TabsList className="mb-6">
             <TabsTrigger value="posts">Your Posts</TabsTrigger>
+            <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
             <TabsTrigger value="profile">Profile Information</TabsTrigger>
             <TabsTrigger value="password">Change Password</TabsTrigger>
           </TabsList>
-
+          
+          {/* Add this new TabsContent after the posts tab */}
+          <TabsContent value="bookmarks">
+            <Card>
+              <CardHeader>
+                <CardTitle>Bookmarked Posts</CardTitle>
+                <CardDescription>Posts you've saved for later</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {bookmarkedPosts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">You haven't bookmarked any posts yet</p>
+                    <Button asChild>
+                      <Link href="/posts">Browse Posts</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {bookmarkedPosts.map((post) => (
+                      <div key={post._id} className="border rounded-lg p-4">
+                        <h3 className="font-medium mb-2">{post.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {stripHtmlTags(post.content).substring(0, 150)}...
+                        </p>
+                        
+                        <div className="flex justify-between items-center">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/posts/${post._id}`}>View Post</Link>
+                          </Button>
+                          
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <ThumbsUp className="w-4 h-4" />
+                              {post.likesCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <ThumbsDown className="w-4 h-4" />
+                              {post.dislikesCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MessageSquare className="w-4 h-4" />
+                              {post.commentsCount || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(post.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
           <TabsContent value="profile">
             <Card>
               <CardHeader>

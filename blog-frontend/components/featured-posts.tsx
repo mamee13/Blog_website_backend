@@ -30,13 +30,8 @@ export default function FeaturedPosts() {
   useEffect(() => {
     const fetchFeaturedPosts = async () => {
       try {
-        const response = await fetch(`${API_URL}/posts?featured=true&limit=3`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('jwt')}`
-          }
-        })
+        const response = await fetch(`${API_URL}/posts?featured=true&limit=3`)
         const data = await response.json()
-        // Take only the first 3 posts from the array
         setPosts(Array.isArray(data) ? data.slice(0, 3) : [])
       } catch (error) {
         console.error('Error fetching featured posts:', error)

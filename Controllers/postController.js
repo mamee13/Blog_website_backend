@@ -274,40 +274,49 @@ exports.getLikes = async (req, res) => {
 // Add after getLikes function
 
 // Get bookmarks for a post
-exports.getBookmarks = catchAsync(async (req, res) => {
-    const posts = await Post.find({
+exports.getBookmarks = catchAsync(async (req, res, next) => {
+    // Find all posts where the current user has bookmarked
+    const bookmarkedPosts = await Post.find({
         'bookmarks.user': req.user._id
-    }).populate('author', 'username');
+    }).populate({
+        path: 'author',
+        select: 'username'
+    });
+
+    // Format the posts with counts
+    const formattedPosts = bookmarkedPosts.map(post => ({
+        ...post.toObject(),
+        likesCount: post.likes.filter(like => like.type === 'like').length,
+        dislikesCount: post.likes.filter(like => like.type === 'dislike').length,
+        commentsCount: post.comments.length,
+        bookmarksCount: post.bookmarks.length
+    }));
 
     res.status(200).json({
         status: 'success',
-        bookmarks: posts
+        data: {
+            posts: formattedPosts
+        }
     });
 });
 
-// Toggle bookmark on a post
-exports.toggleBookmark = catchAsync(async (req, res) => {
+exports.toggleBookmark = catchAsync(async (req, res, next) => {
     const post = await Post.findById(req.params.postId);
-
+    
     if (!post) {
         return next(new AppError('Post not found', 404));
     }
 
-    // Check if user has already bookmarked
-    const existingBookmark = post.bookmarks.find(
+    const bookmarkIndex = post.bookmarks.findIndex(
         bookmark => bookmark.user.toString() === req.user._id.toString()
     );
 
-    if (existingBookmark) {
-        // Remove bookmark if it exists
-        post.bookmarks = post.bookmarks.filter(
-            bookmark => bookmark.user.toString() !== req.user._id.toString()
-        );
+    if (bookmarkIndex > -1) {
+        // Remove bookmark
+        post.bookmarks.splice(bookmarkIndex, 1);
     } else {
-        // Add new bookmark
-        post.bookmarks.push({
-            user: req.user._id
-        });
+        // Add bookmark
+        post.bookmarks.push({ user: req.user._id });
     }
 
     await post.save();
@@ -315,8 +324,8 @@ exports.toggleBookmark = catchAsync(async (req, res) => {
     res.status(200).json({
         status: 'success',
         data: {
-            isBookmarked: !existingBookmark,
-            bookmarkCount: post.bookmarkCount
+            isBookmarked: bookmarkIndex === -1,
+            message: bookmarkIndex > -1 ? 'Bookmark removed' : 'Post bookmarked'
         }
     });
 });

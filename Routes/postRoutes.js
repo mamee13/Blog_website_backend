@@ -13,7 +13,7 @@ router.post('/', protect, postController.uploadPostImage, postController.createP
 
 // Place specific routes BEFORE parameter routes
 router.get('/my-posts', protect, postController.getMyPosts);
-router.get('/bookmarks', protect, postController.getBookmarks);
+router.get('/bookmarked', protect, postController.getBookmarks);  // Keep only one bookmarks route
 
 // Post routes with ID parameter
 router.get('/:id', protect, postController.getPost);
@@ -22,6 +22,8 @@ router.delete('/:id', protect, postController.deletePost);
 
 // Post interaction routes
 router.post('/:postId/bookmark', protect, postController.toggleBookmark);
+// Remove this duplicate route
+// router.get('/bookmarked', protect, postController.getBookmarks);
 router.post('/:id/comments', protect, postController.createComment);
 router.delete('/:postId/comments/:commentId', protect, postController.deleteComment);
 router.post('/:postId/like', protect, postController.toggleLike);

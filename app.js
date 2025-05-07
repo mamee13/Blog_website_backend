@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const authRoutes = require('./Routes/authRoutes');
 const postRoutes = require('./Routes/postRoutes');
+const contactRoutes = require('./Routes/contactRoutes');
 const errorController = require('./Controllers/errorcontroller');
 
 // Load environment variables
@@ -35,6 +36,7 @@ mongoose.connect(process.env.MONGODB_URI)
 // Routes
 app.use('/api/users', authRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
