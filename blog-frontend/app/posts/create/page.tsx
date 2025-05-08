@@ -1,12 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-
-const Editor = dynamic(() => import('@/components/editor'), {
-  ssr: false,
-  loading: () => <p>Loading editor...</p>
-});
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -14,8 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_URL } from "@/lib/utils"
-// Update this line
-import { Editor } from "@/components/editor"
+
+// Remove the duplicate import and keep only the dynamic import
+const Editor = dynamic(() => import('@/components/editor'), {
+  ssr: false,
+  loading: () => <p>Loading editor...</p>
+});
 
 export default function CreatePost() {
   const router = useRouter()
