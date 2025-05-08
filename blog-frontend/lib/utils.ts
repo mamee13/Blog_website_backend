@@ -19,7 +19,7 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + "..."
 }
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://blog-website-g0gw.onrender.com/api"
 
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Get the token from localStorage

@@ -17,11 +17,15 @@ const app = express();
 // Middleware
 // CORS Configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://blog-website-1-q9js.onrender.com/api', 'https://blog-website-steel-iota.vercel.app/'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Authorization']
+  origin: [
+    'http://localhost:3000',
+    'https://blog-website-steel-iota.vercel.app',
+    'https://blog-website-1-q9js.onrender.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Authorization']
 }));
 
 // Make sure these are set before your routes
@@ -33,15 +37,19 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "https://blog-website-1-q9js.onrender.com"],
+      connectSrc: [
+        "'self'",
+        "https://blog-website-1-q9js.onrender.com", // backend
+        "https://blog-website-steel-iota.vercel.app" // frontend
+      ],
     }
   }
 }));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('Connected to MongoDB'))
-.catch((err) => console.error('MongoDB connection error:', err));
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Routes
 app.use('/api/users', authRoutes);
