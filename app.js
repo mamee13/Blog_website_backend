@@ -6,6 +6,7 @@ const authRoutes = require('./Routes/authRoutes');
 const postRoutes = require('./Routes/postRoutes');
 const contactRoutes = require('./Routes/contactRoutes');
 const errorController = require('./Controllers/errorController');
+const helmet = require('helmet');
 
 // Load environment variables
 dotenv.config({ path: './Config.env' });
@@ -16,7 +17,7 @@ const app = express();
 // Middleware
 // CORS Configuration
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:3000', 'https://blog-website-1-q9js.onrender.com', 'https://blog-website-steel-iota.vercel.app/'],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -27,6 +28,15 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/images', express.static('public/images'));
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", "https://blog-website-1-q9js.onrender.com"],
+    }
+  }
+}));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
@@ -45,5 +55,7 @@ app.get('/', (req, res) => {
 
 // Add this after all your routes
 app.use(errorController);
+
+// Use helmet for security headers
 
 module.exports = app; // Export the app for use in server.js
