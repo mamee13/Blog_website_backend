@@ -54,6 +54,11 @@ export default function LoginPage() {
     }
   }
 
+  const useDemoAccount = () => {
+    setEmail("mamaruyirga1394@gmail.com")
+    setPassword("Password123")
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
       <div className="container mx-auto px-4 py-16">
@@ -75,7 +80,17 @@ export default function LoginPage() {
                   <LogIn className="w-6 h-6 text-primary" />
                   Login
                 </CardTitle>
-                <CardDescription>Enter your credentials to access your account</CardDescription>
+                <CardDescription>
+                  Enter your credentials to access your account
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-primary p-0 h-auto font-normal hover:text-primary/80"
+                    onClick={useDemoAccount}
+                  >
+                    or Use demo account
+                  </Button>
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
