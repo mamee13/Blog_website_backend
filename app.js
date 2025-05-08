@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const authRoutes = require('./Routes/authRoutes');
 const postRoutes = require('./Routes/postRoutes');
 const contactRoutes = require('./Routes/contactRoutes');
-const errorController = require('./Controllers/errorcontroller');
+const errorController = require('./Controllers/errorController');
 
 // Load environment variables
 dotenv.config({ path: './Config.env' });
