@@ -35,6 +35,7 @@ app.use('/images', express.static('public/images'));
 
 app.use(helmet({
   contentSecurityPolicy: {
+    useDefaults: true,
     directives: {
       defaultSrc: ["'self'"],
       connectSrc: [
