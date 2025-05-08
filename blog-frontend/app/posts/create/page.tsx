@@ -1,4 +1,11 @@
-"use client"
+'use client';
+
+import dynamic from 'next/dynamic';
+
+const Editor = dynamic(() => import('@/components/editor'), {
+  ssr: false,
+  loading: () => <p>Loading editor...</p>
+});
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
