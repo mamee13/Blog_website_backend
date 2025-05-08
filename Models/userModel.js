@@ -36,10 +36,13 @@ const userSchema = new mongoose.Schema({
     },
     verificationCode: String,
     verificationCodeExpires: Date,
+    passwordResetCode: String,
+    passwordResetExpires: Date,
+    passwordChangedAt: Date,
     bookmarks: [{
         post: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'post'  // Changed from 'Post' to 'post' to match your model name
+            ref: 'post' 
         },
         addedAt: {
             type: Date,
@@ -51,6 +54,11 @@ const userSchema = new mongoose.Schema({
 // Remove passwordConfirm field before saving
 userSchema.pre('save', function(next) {
     this.passwordConfirm = undefined;
+    
+    // If password was modified, set passwordChangedAt
+    if (this.isModified('password')) {
+        this.passwordChangedAt = Date.now() - 1000;
+    }
     next();
 });
 

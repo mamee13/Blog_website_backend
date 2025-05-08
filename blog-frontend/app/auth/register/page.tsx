@@ -11,9 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_URL } from "@/lib/utils"
-import { UserPlus, Mail, Lock, User, KeyRound, ArrowRight, LogIn } from "lucide-react"
+import { UserPlus, Mail, Lock, User, KeyRound, ArrowRight, LogIn, Eye, EyeOff } from "lucide-react"
 
 export default function RegisterPage() {
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -85,7 +87,6 @@ export default function RegisterPage() {
         throw new Error(data.message || "Verification failed")
       }
 
-      // Only store token and redirect after successful verification
       localStorage.setItem("jwt", data.token)
       router.push("/")
     } catch (err) {
@@ -230,14 +231,23 @@ export default function RegisterPage() {
                       <Lock className="w-4 h-4 text-primary" />
                       Password
                     </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="border-primary/20 focus:border-primary"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="border-primary/20 focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -245,14 +255,23 @@ export default function RegisterPage() {
                       <Lock className="w-4 h-4 text-primary" />
                       Confirm Password
                     </Label>
-                    <Input
-                      id="passwordConfirm"
-                      type="password"
-                      value={passwordConfirm}
-                      onChange={(e) => setPasswordConfirm(e.target.value)}
-                      required
-                      className="border-primary/20 focus:border-primary"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="passwordConfirm"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordConfirm}
+                        onChange={(e) => setPasswordConfirm(e.target.value)}
+                        required
+                        className="border-primary/20 focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <Button 

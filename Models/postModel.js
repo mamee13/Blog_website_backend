@@ -22,7 +22,6 @@ const postSchema = new mongoose.Schema({
     category: {
         type: String,
         required: [true, 'A post must have a category'],
-        enum: ['Technology', 'Travel', 'Food', 'Sport', 'Lifestyle', 'Other']
     },
     createdAt: {
         type: Date,

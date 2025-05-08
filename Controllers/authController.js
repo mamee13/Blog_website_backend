@@ -263,3 +263,74 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
             message: 'Password updated successfully'
         });
     });
+
+// Add these exports after your existing exports
+
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+    const { email } = req.body;
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+        return next(new AppError('There is no user with that email address.', 404));
+    }
+
+    // Generate verification code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save the reset code to user
+    user.passwordResetCode = resetCode;
+    user.passwordResetExpires = resetCodeExpires;
+    await user.save();
+
+    try {
+        // Send reset code to user's email
+        await sendVerificationEmail(email, resetCode); // You can modify email template for reset password
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Reset code sent to email'
+        });
+    } catch (err) {
+        user.passwordResetCode = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save();
+
+        return next(new AppError('There was an error sending the email. Try again later.', 500));
+    }
+});
+
+exports.resetPassword = catchAsync(async (req, res, next) => {
+    const { email, resetCode, password, passwordConfirm } = req.body;
+
+    if (password !== passwordConfirm) {
+        return next(new AppError('Passwords do not match', 400));
+    }
+
+    // Find user by email and reset code
+    const user = await User.findOne({
+        email,
+        passwordResetCode: resetCode,
+        passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return next(new AppError('Invalid or expired reset code', 400));
+    }
+
+    // Update password
+    user.password = await bcrypt.hash(password, 12);
+    user.passwordResetCode = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    // Generate new token
+    const token = signToken(user._id);
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Password reset successfully',
+        token
+    });
+});

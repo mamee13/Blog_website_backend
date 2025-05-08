@@ -110,7 +110,10 @@ export default function ProfilePage() {
           }
         })
         const userData = await userResponse.json()
-        if (!userResponse.ok) throw new Error(userData.message || "Failed to load profile data")
+        if (!userResponse.ok) {
+          router.push("/auth/login")
+          return
+        }
         
         // Fetch user posts
         const postsResponse = await fetch(`${API_URL}/posts/my-posts`, {
@@ -321,7 +324,7 @@ export default function ProfilePage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="username">Name</Label>
                     <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
                   </div>
 

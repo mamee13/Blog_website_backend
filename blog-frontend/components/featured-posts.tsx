@@ -47,6 +47,26 @@ export default function FeaturedPosts() {
     return <div>Loading featured posts...</div>
   }
 
+  if (posts.length === 0) {
+    return (
+      <section className="py-12">
+        <Card className="p-6 text-center">
+          <CardHeader>
+            <CardTitle className="text-xl">No Featured Posts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              There are no featured posts available at the moment.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Featured posts will appear here once they are selected by our editors.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+    )
+  }
+
   return (
     <section className="py-12">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

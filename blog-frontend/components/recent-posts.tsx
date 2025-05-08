@@ -47,6 +47,24 @@ export default function RecentPosts() {
     return <div>Loading recent posts...</div>
   }
 
+  if (posts.length === 0) {
+    return (
+      <Card className="p-6 text-center">
+        <CardHeader>
+          <CardTitle className="text-xl">No Recent Posts Yet</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground mb-4">
+            There are no recent posts available at the moment.
+          </p>
+          <Link href="/posts/create" className="text-primary hover:underline">
+            Be the first to create a post!
+          </Link>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {posts.map((post) => (
