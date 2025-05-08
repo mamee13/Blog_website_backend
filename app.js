@@ -17,7 +17,7 @@ const app = express();
 // Middleware
 // CORS Configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://blog-website-1-q9js.onrender.com', 'https://blog-website-steel-iota.vercel.app/'],
+    origin: ['http://localhost:3000', 'https://blog-website-1-q9js.onrender.com/api', 'https://blog-website-steel-iota.vercel.app/'],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
