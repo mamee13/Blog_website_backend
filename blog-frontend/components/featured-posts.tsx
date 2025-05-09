@@ -30,7 +30,7 @@ export default function FeaturedPosts() {
   useEffect(() => {
     const fetchFeaturedPosts = async () => {
       try {
-        const response = await fetch(`${API_URL}/posts?featured=true&limit=3`)
+        const response = await fetch(`${API_URL}/posts`)
         const data = await response.json()
         setPosts(Array.isArray(data) ? data.slice(0, 3) : [])
       } catch (error) {

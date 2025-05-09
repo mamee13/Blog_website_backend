@@ -30,7 +30,13 @@ export default function RecentPosts() {
   useEffect(() => {
     const fetchRecentPosts = async () => {
       try {
-        const response = await fetch(`${API_URL}/posts?limit=3`)
+        const response = await fetch(`${API_URL}/posts`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
         const data = await response.json()
         setPosts(Array.isArray(data) ? data.slice(0, 3) : [])
       } catch (error) {

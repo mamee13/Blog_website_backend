@@ -14,6 +14,28 @@ dotenv.config({ path: './Config.env' });
 // Initialize Express app
 const app = express();
 
+// Make sure these are set before your routes
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/images', express.static('public/images'));
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        "https://blog-website-1-q9js.onrender.com", // backend
+        "https://blog-website-steel-iota.vercel.app", // frontend
+        "http://localhost:3000" // local frontend development
+      ],
+      imgSrc: ["'self'", "data:", "blob:"], // Allow images from self, data URLs and blob URLs
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // May need these for certain frontend frameworks
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
+    }
+  }
+}));
 // Middleware
 // CORS Configuration
 app.use(cors({
@@ -33,19 +55,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/images', express.static('public/images'));
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: [
-        "'self'",
-        "https://blog-website-1-q9js.onrender.com", // backend
-        "https://blog-website-steel-iota.vercel.app" // frontend
-      ],
-    }
-  }
-}));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
