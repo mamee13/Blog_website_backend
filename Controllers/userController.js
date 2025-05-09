@@ -74,15 +74,100 @@ exports.sendContactEmail = catchAsync(async (req, res, next) => {
         }
 
         const mailOptions = {
-            from: `${user.username} <${user.email}>`,
+            from: `"Blog Website" <${user.email}>`,
             to: 'mamaruyirga1394@gmail.com',
             subject: `Contact Message from ${user.username}`,
             html: `
-                <h2>New Contact Message</h2>
-                <p><strong>From:</strong> ${user.username}</p>
-                <p><strong>Email:</strong> ${user.email}</p>
-                <p><strong>Message:</strong></p>
-                <p>${message.replace(/\n/g, '<br>')}</p>
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>New Contact Message</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 600px;
+                            margin: 0 auto;
+                        }
+                        .email-container {
+                            border: 1px solid #e0e0e0;
+                            border-radius: 5px;
+                            overflow: hidden;
+                        }
+                        .email-header {
+                            background-color: #4a6da7;
+                            color: white;
+                            padding: 20px;
+                            text-align: center;
+                        }
+                        .email-body {
+                            padding: 20px;
+                            background-color: #f9f9f9;
+                        }
+                        .email-footer {
+                            background-color: #f1f1f1;
+                            padding: 15px;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #666;
+                        }
+                        .message-content {
+                            background-color: white;
+                            padding: 15px;
+                            border-radius: 4px;
+                            border-left: 4px solid #4a6da7;
+                            margin-top: 15px;
+                        }
+                        .user-info {
+                            margin-bottom: 20px;
+                            padding-bottom: 15px;
+                            border-bottom: 1px solid #e0e0e0;
+                        }
+                        .timestamp {
+                            color: #888;
+                            font-size: 12px;
+                            margin-top: 10px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="email-container">
+                        <div class="email-header">
+                            <h1>New Contact Message</h1>
+                        </div>
+                        <div class="email-body">
+                            <div class="user-info">
+                                <p><strong>From:</strong> ${user.username}</p>
+                                <p><strong>Email:</strong> ${user.email}</p>
+                                <p class="timestamp">Sent on: ${new Date().toLocaleString()}</p>
+                            </div>
+                            <h3>Message:</h3>
+                            <div class="message-content">
+                                <p>${message.replace(/\n/g, '<br>')}</p>
+                            </div>
+                        </div>
+                        <div class="email-footer">
+                            <p>This message was sent from your Blog Website contact form.</p>
+                            <p>&copy; ${new Date().getFullYear()} Blog Website. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `,
+            text: `
+                New Contact Message
+                
+                From: ${user.username}
+                Email: ${user.email}
+                Sent on: ${new Date().toLocaleString()}
+                
+                Message:
+                ${message}
+                
+                This message was sent from your Blog Website contact form.
             `
         };
 
